@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useUser } from "@/context/useUser"
+import { getRoleRoute, roleFromSignupRoleId } from "@/lib/navigation/role-config"
 import {
   AVAILABLE_ROLES,
   registrationSchema,
@@ -120,12 +121,13 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
       // Create new user object
+      const primaryRole = roleFromSignupRoleId(data.roles[0])
       const newUser = {
         userId: `user_${Date.now()}`,
         email: data.email,
         telephone: data.telephone,
         nomAffiche: data.nomAffiche,
-        roles: data.roles.map(role => roleMapping[role] || role) as UserRole[],
+        roles: data.roles.map((role) => roleMapping[role] || role) as UserRole[],
         statut: "actif" as const,
         dateCreation: Date.now(),
         derniereConnexion: Date.now(),
@@ -135,8 +137,7 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
       setUser(newUser)
       addUser(newUser)
 
-      // Redirect to dashboard
-      router.push("/")
+      router.push(getRoleRoute(primaryRole))
     } catch (err) {
       setError("Registration failed. Please try again.")
       console.error("Registration error:", err)

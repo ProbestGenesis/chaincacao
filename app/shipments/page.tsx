@@ -1,13 +1,7 @@
-import React from 'react'
+"use client"
 
-type Props = {}
+import { ShipmentDashboard } from "@/components/dashboard/shipment-dashboard"
 
-const page = (props: Props) => {
-  return (
-    <div>
-      
-    </div>
-  )
+export default function Page() {
+  return <ShipmentDashboard />
 }
-
-export default page

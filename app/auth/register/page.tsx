@@ -3,11 +3,8 @@
 import { GalleryVerticalEnd } from "lucide-react"
 
 import { MultiStepSignupForm } from "@/components/multi-step-signup-form"
-import type { RegistrationFormData } from "@/lib/schemas/registration"
-import {  useState } from "react"
 
 export default function SignupPage() {
-  const [registerData, setRegisterData] = useState< RegistrationFormData>()
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">

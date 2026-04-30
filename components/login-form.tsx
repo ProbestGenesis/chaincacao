@@ -9,12 +9,11 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { mockUsers } from "@/mock/mockData"
 import { useUser } from "@/context/useUser"
 import { loginSchema, type LoginFormData } from "@/lib/schemas/login"
 import { cn } from "@/lib/utils"
+import { useUsersStore } from "@/store/users"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 
@@ -24,8 +23,8 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
   const { setUser } = useUser()
+  const getUserByEmail = useUsersStore((state) => state.getUserByEmail)
 
   const {
     register,
@@ -40,8 +39,7 @@ export function LoginForm({
     setIsSubmitting(true)
     setError(null)
     try {
-      // Search in mockUsers
-      const foundUser = mockUsers.find((u) => u.email === data.email)
+      const foundUser = getUserByEmail(data.email)
 
       if (!foundUser) {
         setError("Email ou mot de passe invalide")
@@ -59,8 +57,6 @@ export function LoginForm({
       }
 
       setUser(updatedUser)
-
-      // Redirect will be handled by UserContext useEffect
     } catch (err) {
       setError("Erreur de connexion. Veuillez réessayer.")
       console.error("Login error:", err)
