@@ -59,6 +59,9 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
       { title: "Accueil", href: "/agriculteur", icon: Home },
       { title: "Mes lots", href: "/agriculteur/lots", icon: PackageOpen },
       { title: "Nouveau lot", href: "/agriculteur/nouveau-lot", icon: FolderTree },
+      { title: "Historique", href: "/agriculteur/historique", icon: FolderTree },
+      { title: "Expéditions", href: "/agriculteur/expedition", icon: Truck },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
       { title: "Profil", href: "/agriculteur/profil", icon: UserRound },
     ],
     footerItems: [
@@ -76,6 +79,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Tableau de bord", href: "/cooperative", icon: Home },
       { title: "Gestion lots", href: "/cooperative/lots", icon: Warehouse },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Rapports", href: "/cooperative/lots", icon: ChartColumn },
@@ -108,6 +112,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/exporter", icon: Home },
       { title: "Conformité", href: "/exporter/conformite", icon: ShieldCheck },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Expéditions", href: "/exporter/conformite", icon: Truck },

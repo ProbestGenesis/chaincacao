@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useUser } from "@/context/useUser"
 import { useLotsStore } from "@/store/lots"
-import { LotForm } from "@/components/forms/lot-form"
+import { EnhancedLotForm } from "@/components/forms/enhanced-lot-form"
 import { Card } from "@/components/ui/card"
 import type { LotFormData } from "@/lib/schemas/lot"
 
@@ -16,7 +16,7 @@ export default function NouveauLotPage() {
     if (!user) return
 
     try {
-      addLot({
+      const lot = addLot({
         farmerId: user.userId,
         photoUrls: data.photoUrls || [],
         photoHashes: [],
@@ -34,7 +34,7 @@ export default function NouveauLotPage() {
         createdBy: user.userId,
       })
 
-      router.push("/agriculteur/lots")
+      router.push(`/agriculteur/lots/${lot.lotId}`)
     } catch (error) {
       console.error("Error creating lot:", error)
     }
@@ -44,11 +44,11 @@ export default function NouveauLotPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Ajouter un Nouveau Lot</h1>
-        <p className="text-muted-foreground mt-1">Remplissez les informations de votre lot agricole</p>
+        <p className="text-muted-foreground mt-1">Remplissez les informations de votre lot agricole. La géolocalisation est détectée automatiquement.</p>
       </div>
 
       <Card className="p-6">
-        <LotForm
+        <EnhancedLotForm
           onSubmit={handleSubmit}
           submitLabel="Créer le Lot"
           defaultValues={{
