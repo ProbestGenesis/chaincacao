@@ -254,9 +254,10 @@ export function LotWorkflowTimeline({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() =>
+                            onClick={(e) => {
+                              e.stopPropagation()
                               registerActionOnChain(action.actionId)
-                            }
+                            }}
                           >
                             Enregistrer dans la chaîne
                           </Button>
