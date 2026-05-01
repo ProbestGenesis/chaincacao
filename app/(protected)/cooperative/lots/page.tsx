@@ -54,7 +54,7 @@ export default function GestionLotsPage() {
   const [selectedLots, setSelectedLots] = useState<string[]>([])
   const [newGroupName, setNewGroupName] = useState("")
   const [open, setOpen] = useState(false)
-  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
+  const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
@@ -66,6 +66,9 @@ export default function GestionLotsPage() {
     () => lots.filter((lot) => lot.coopName && !lot.isGroup && !groupedLotIds.has(lot.lotId)),
     [groupedLotIds, lots]
   )
+  const selectedLot = selectedLotId
+    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    : null
   const groups = user ? getGroupsByManager(user.userId) : []
 
   const handleCreateGroup = () => {
@@ -152,7 +155,7 @@ export default function GestionLotsPage() {
     setSelectedLots([])
     setNewGroupName("")
     setOpen(false)
-    setSelectedLot(groupLot)
+    setSelectedLotId(groupLot.lotId)
     setLotDetailOpen(true)
     setStatusMessage(`Groupement ${newGroupName} créé avec succès.`)
   }
@@ -160,7 +163,7 @@ export default function GestionLotsPage() {
   const openLot = (lotId: string) => {
     const lot = getLotById(lotId)
     if (!lot) return
-    setSelectedLot(lot)
+    setSelectedLotId(lot.lotId)
     setLotDetailOpen(true)
   }
 
@@ -284,7 +287,7 @@ export default function GestionLotsPage() {
                       key={lot.lotId}
                       className="cursor-pointer border-b hover:bg-muted/50"
                       onClick={() => {
-                        setSelectedLot(lot)
+                        setSelectedLotId(lot.lotId)
                         setLotDetailOpen(true)
                       }}
                     >

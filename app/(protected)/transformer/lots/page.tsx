@@ -9,7 +9,6 @@ import { LotDetailModal } from "@/components/lot/lot-detail-modal"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { useUser } from "@/context/useUser"
-import type { Lot } from "@/types/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +26,7 @@ function TransformerLotsContent() {
   const { user } = useUser()
   const { lots } = useLotsStore()
   const { getLotTimeline } = useLotActionsStore()
-  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
+  const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -46,6 +45,9 @@ function TransformerLotsContent() {
       lot.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.coopName.toLowerCase().includes(searchTerm.toLowerCase())
   )
+  const selectedLot = selectedLotId
+    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    : null
 
   const metrics = [
     {
@@ -169,7 +171,7 @@ function TransformerLotsContent() {
                       key={lot.lotId}
                       type="button"
                       onClick={() => {
-                        setSelectedLot(lot)
+                        setSelectedLotId(lot.lotId)
                         setDetailOpen(true)
                       }}
                       className="w-full rounded-2xl border bg-muted/20 p-3 text-left transition hover:border-primary/60 hover:bg-muted/40"

@@ -1,22 +1,27 @@
 "use client"
 
-import type React from "react"
-import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Upload, MapPin, Loader, AlertCircle, X } from "lucide-react"
+import { AlertCircle, Loader, MapPin, Upload, X } from "lucide-react"
+import type React from "react"
+import { useEffect, useState } from "react"
+import { useForm } from "react-hook-form"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LotFormSchema, type LotFormData } from "@/lib/schemas/lot"
 import { cn } from "@/lib/utils"
 
@@ -79,7 +84,7 @@ export function EnhancedLotForm({
       (position) => {
         const lat = parseFloat(position.coords.latitude.toFixed(6))
         const lon = parseFloat(position.coords.longitude.toFixed(6))
-        
+
         setValue("gpsLatitude", lat)
         setValue("gpsLongitude", lon)
         setGeoLoading(false)
@@ -87,7 +92,8 @@ export function EnhancedLotForm({
       (error) => {
         let message = "Erreur de géolocalisation"
         if (error.code === error.PERMISSION_DENIED) {
-          message = "Accès à la géolocalisation refusé. Veuillez activer les permissions."
+          message =
+            "Accès à la géolocalisation refusé. Veuillez activer les permissions."
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           message = "Position non disponible. Essayez ultérieurement."
         }
@@ -104,7 +110,7 @@ export function EnhancedLotForm({
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    
+
     files.forEach((file) => {
       if (uploadedImages.length < 5) {
         setUploadedImages((prev) => [...prev, file])
@@ -141,8 +147,8 @@ export function EnhancedLotForm({
       {/* Geolocation Section */}
       <Card className="">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MapPin className="h-5 w-5 text-primary" />
             Localisation GPS
           </CardTitle>
           <CardDescription>
@@ -158,23 +164,33 @@ export function EnhancedLotForm({
           )}
 
           {geoLoading ? (
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <Loader className="h-4 w-4 animate-spin" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader className="h-4 w-4 animate-spin text-primary" />
               Détection de la position en cours...
             </div>
           ) : latitude && longitude ? (
-            <div className="grid grid-cols-2 gap-4 bg-white p-3 rounded border border-blue-200">
+            <div className="grid grid-cols-2 gap-4 rounded border border-border bg-card p-3">
               <div>
-                <p className="font-medium text-sm text-blue-900">Latitude</p>
-                <p className="text-lg font-semibold text-blue-700">{latitude.toFixed(4)}°</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Latitude
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  {latitude.toFixed(4)}°
+                </p>
               </div>
               <div>
-                <p className="font-medium text-sm text-blue-900">Longitude</p>
-                <p className="text-lg font-semibold text-blue-700">{longitude.toFixed(4)}°</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Longitude
+                </p>
+                <p className="text-lg font-semibold text-foreground">
+                  {longitude.toFixed(4)}°
+                </p>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-blue-700">Position en attente...</p>
+            <p className="text-sm text-muted-foreground">
+              Position en attente...
+            </p>
           )}
 
           <Button
@@ -199,10 +215,14 @@ export function EnhancedLotForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <label className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted transition-colors">
-            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-sm font-medium">Cliquez pour sélectionner des images</p>
-            <p className="text-xs text-muted-foreground">JPG, PNG jusqu'à 5 MB</p>
+          <label className="flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-6 transition-colors hover:bg-muted">
+            <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">
+              Cliquez pour sélectionner des images
+            </p>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG jusqu'à 5 MB
+            </p>
             <input
               type="file"
               multiple
@@ -216,20 +236,22 @@ export function EnhancedLotForm({
           {uploadedImages.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                {uploadedImages.length} image{uploadedImages.length > 1 ? "s" : ""} sélectionnée{uploadedImages.length > 1 ? "s" : ""}
+                {uploadedImages.length} image
+                {uploadedImages.length > 1 ? "s" : ""} sélectionnée
+                {uploadedImages.length > 1 ? "s" : ""}
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative group">
+                  <div key={index} className="group relative">
                     <img
                       src={preview}
                       alt={`Preview ${index}`}
-                      className="w-full h-20 object-cover rounded border"
+                      className="h-20 w-full rounded border object-cover"
                     />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1 right-1 rounded-full bg-red-500 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -245,13 +267,21 @@ export function EnhancedLotForm({
       <FieldGroup className="grid gap-4 md:grid-cols-2">
         <Field>
           <FieldLabel htmlFor="espece">Espèce</FieldLabel>
-          <Input id="espece" {...register("espece")} placeholder="Cacao Fermenté" />
+          <Input
+            id="espece"
+            {...register("espece")}
+            placeholder="Cacao Fermenté"
+          />
           <FieldError errors={[errors.espece]} />
         </Field>
 
         <Field>
           <FieldLabel htmlFor="coopName">Coopérative</FieldLabel>
-          <Input id="coopName" {...register("coopName")} placeholder="Coopérative Centrale" />
+          <Input
+            id="coopName"
+            {...register("coopName")}
+            placeholder="Coopérative Centrale"
+          />
           <FieldError errors={[errors.coopName]} />
         </Field>
 
@@ -269,7 +299,11 @@ export function EnhancedLotForm({
 
         <Field>
           <FieldLabel htmlFor="region">Région</FieldLabel>
-          <Input id="region" {...register("region")} placeholder="Haut-Sassandra" />
+          <Input
+            id="region"
+            {...register("region")}
+            placeholder="Haut-Sassandra"
+          />
           <FieldError errors={[errors.region]} />
         </Field>
 

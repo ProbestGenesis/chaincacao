@@ -11,19 +11,21 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowRight, CheckCircle2, Clock3, PackageOpen, RefreshCw, Truck } from "lucide-react"
 import Link from "next/link"
-import type { Lot } from "@/types/types"
 import { translateStatus } from "@/lib/status-helper"
 
 export function TransformerDashboard() {
   const { user, activeRole } = useUser()
   const { lots } = useLotsStore()
   const { getLotTimeline, actions } = useLotActionsStore()
-  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
+  const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
 
   const transformerLots = lots.filter((lot) =>
-    ["pending", "transferred", "transformed", "exported"].includes(lot.statut)
+    ["pending", "transferred", "transformed", "verified", "exported"].includes(lot.statut)
   )
+  const selectedLot = selectedLotId
+    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    : null
 
   const pendingLots = transformerLots.filter((lot) => lot.statut === "pending")
   const transferredLots = transformerLots.filter((lot) => lot.statut === "transferred")
@@ -193,7 +195,7 @@ export function TransformerDashboard() {
                       key={lot.lotId}
                       type="button"
                       onClick={() => {
-                        setSelectedLot(lot)
+                        setSelectedLotId(lot.lotId)
                         setLotDetailOpen(true)
                       }}
                       className="w-full rounded-2xl border p-4 text-left transition hover:border-primary/50 hover:bg-muted/30"
