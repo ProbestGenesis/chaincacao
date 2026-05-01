@@ -1,40 +1,130 @@
 "use client"
 
+import { useMemo, useState } from "react"
+import Link from "next/link"
+import { ArrowLeft, ChevronRight, Plus } from "lucide-react"
+
 import { useLotsStore } from "@/store/lots"
+import { useLotActionsStore } from "@/store/lot-actions"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useUser } from "@/context/useUser"
+import { LotDetailModal } from "@/components/lot/lot-detail-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { ArrowLeft, Plus } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
+import type { Lot } from "@/types/types"
+
+const averageCoordinates = (lots: Lot[]) => {
+  if (lots.length === 0) {
+    return { latitude: 0, longitude: 0 }
+  }
+
+  const total = lots.reduce(
+    (acc, lot) => ({
+      latitude: acc.latitude + lot.gps.latitude,
+      longitude: acc.longitude + lot.gps.longitude,
+    }),
+    { latitude: 0, longitude: 0 }
+  )
+
+  return {
+    latitude: total.latitude / lots.length,
+    longitude: total.longitude / lots.length,
+  }
+}
 
 export default function GestionLotsPage() {
   const { user } = useUser()
-  const { lots } = useLotsStore()
-  const { createGroup, getGroupsByManager } = useCooperativeStore()
+  const { lots, addLot, getLotById } = useLotsStore()
+  const { addAction } = useLotActionsStore()
+  const { createGroup, getGroupsByManager, setGroupLotId } = useCooperativeStore()
   const [selectedLots, setSelectedLots] = useState<string[]>([])
   const [newGroupName, setNewGroupName] = useState("")
   const [open, setOpen] = useState(false)
+  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
+  const [lotDetailOpen, setLotDetailOpen] = useState(false)
 
-  const coopLots = lots.filter((lot) => lot.coopName)
+  const coopLots = useMemo(
+    () => lots.filter((lot) => lot.coopName && !lot.isGroup),
+    [lots]
+  )
   const groups = user ? getGroupsByManager(user.userId) : []
 
   const handleCreateGroup = () => {
     if (!user || selectedLots.length === 0 || !newGroupName) return
 
-    const groupWeight = lots
-      .filter((l) => selectedLots.includes(l.lotId))
-      .reduce((sum, l) => sum + l.poidsKg, 0)
+    const sourceLots = lots.filter((lot) => selectedLots.includes(lot.lotId))
+    if (sourceLots.length === 0) return
 
-    createGroup(newGroupName, user.userId, selectedLots, groupWeight)
+    const totalWeight = sourceLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
+    const groupBase = averageCoordinates(sourceLots)
+    const sourceLotIds = sourceLots.map((lot) => lot.lotId)
+    const uniquePhotoUrls = Array.from(new Set(sourceLots.flatMap((lot) => lot.photoUrls)))
+    const uniquePhotoHashes = Array.from(new Set(sourceLots.flatMap((lot) => lot.photoHashes)))
+    const firstLot = sourceLots[0]
+
+    const groupRecord = createGroup(newGroupName, user.userId, sourceLotIds, totalWeight)
+
+    const groupLot = addLot({
+      farmerId: user.userId,
+      photoUrls: uniquePhotoUrls,
+      photoHashes: uniquePhotoHashes,
+      gps: groupBase,
+      region: firstLot.region,
+      poidsKg: totalWeight,
+      espece: firstLot.espece,
+      dateCollecte: Date.now(),
+      coopName: newGroupName,
+      statut: "transferred",
+      syncStatus: "pending",
+      createdBy: user.userId,
+      isGroup: true,
+      groupId: groupRecord.groupId,
+      groupName: newGroupName,
+      sourceLotIds,
+    })
+
+    addAction({
+      lotId: groupLot.lotId,
+      actor: "CoopManager",
+      actorName: user.nomAffiche,
+      actorId: user.userId,
+      action: "grouped",
+      phase: "regroupement",
+      status: "transferred",
+      description: `Groupement ${newGroupName} créé à partir de ${sourceLotIds.length} lots.`,
+      metadata: {
+        groupId: groupRecord.groupId,
+        groupName: newGroupName,
+        sourceLots: sourceLotIds,
+        sourceLotCount: sourceLotIds.length,
+        totalWeight,
+      },
+    })
+
+    setGroupLotId(groupRecord.groupId, groupLot.lotId)
     setSelectedLots([])
     setNewGroupName("")
     setOpen(false)
+    setSelectedLot(groupLot)
+    setLotDetailOpen(true)
+  }
+
+  const openLot = (lotId: string) => {
+    const lot = getLotById(lotId)
+    if (!lot) return
+    setSelectedLot(lot)
+    setLotDetailOpen(true)
   }
 
   return (
@@ -42,7 +132,9 @@ export default function GestionLotsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Gestion des Lots</h1>
-          <p className="text-muted-foreground mt-1">Agrégez et groupez les lots coopératifs</p>
+          <p className="mt-1 text-muted-foreground">
+            Regroupez les lots de la coopérative et suivez le lot maître comme un lot unique.
+          </p>
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/cooperative" className="flex items-center gap-2">
@@ -63,7 +155,9 @@ export default function GestionLotsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Créer un Nouveau Groupement</DialogTitle>
-              <DialogDescription>Sélectionnez les lots à regrouper</DialogDescription>
+              <DialogDescription>
+                Le groupement sera matérialisé comme un lot maître pour la suite de la chaîne.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -79,10 +173,13 @@ export default function GestionLotsPage() {
               </FieldGroup>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium">Sélectionner les lots:</p>
-                <div className="max-h-64 overflow-y-auto space-y-2">
+                <p className="text-sm font-medium">Sélectionner les lots :</p>
+                <div className="max-h-64 space-y-2 overflow-y-auto">
                   {coopLots.map((lot) => (
-                    <label key={lot.lotId} className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-muted">
+                    <label
+                      key={lot.lotId}
+                      className="flex cursor-pointer items-center gap-2 rounded border p-2 hover:bg-muted"
+                    >
                       <input
                         type="checkbox"
                         checked={selectedLots.includes(lot.lotId)}
@@ -95,7 +192,7 @@ export default function GestionLotsPage() {
                         }}
                       />
                       <span className="text-sm">
-                        {lot.lotId} - {lot.poidsKg}kg
+                        {lot.lotId} - {lot.poidsKg} kg
                       </span>
                     </label>
                   ))}
@@ -114,7 +211,6 @@ export default function GestionLotsPage() {
         </Dialog>
       </div>
 
-      {/* Lots Table */}
       <Card>
         <CardHeader>
           <CardTitle>Lots Disponibles ({coopLots.length})</CardTitle>
@@ -125,22 +221,36 @@ export default function GestionLotsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold">ID Lot</th>
-                    <th className="text-left py-3 px-4 font-semibold">Producteur</th>
-                    <th className="text-left py-3 px-4 font-semibold">Poids</th>
-                    <th className="text-left py-3 px-4 font-semibold">Région</th>
-                    <th className="text-left py-3 px-4 font-semibold">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold">ID Lot</th>
+                    <th className="px-4 py-3 text-left font-semibold">Producteur</th>
+                    <th className="px-4 py-3 text-left font-semibold">Poids</th>
+                    <th className="px-4 py-3 text-left font-semibold">Région</th>
+                    <th className="px-4 py-3 text-left font-semibold">Statut</th>
+                    <th className="px-4 py-3 text-left font-semibold">Détail</th>
                   </tr>
                 </thead>
                 <tbody>
                   {coopLots.map((lot) => (
-                    <tr key={lot.lotId} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4 font-mono text-xs">{lot.lotId}</td>
-                      <td className="py-3 px-4">{lot.coopName}</td>
-                      <td className="py-3 px-4">{lot.poidsKg} kg</td>
-                      <td className="py-3 px-4">{lot.region}</td>
-                      <td className="py-3 px-4">
+                    <tr
+                      key={lot.lotId}
+                      className="cursor-pointer border-b hover:bg-muted/50"
+                      onClick={() => {
+                        setSelectedLot(lot)
+                        setLotDetailOpen(true)
+                      }}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs">{lot.lotId}</td>
+                      <td className="px-4 py-3">{lot.coopName}</td>
+                      <td className="px-4 py-3">{lot.poidsKg} kg</td>
+                      <td className="px-4 py-3">{lot.region}</td>
+                      <td className="px-4 py-3">
                         <Badge variant="outline">{lot.statut}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          Voir
+                          <ChevronRight className="h-4 w-4" />
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -148,38 +258,72 @@ export default function GestionLotsPage() {
               </table>
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-8">Aucun lot disponible</p>
+            <p className="py-8 text-center text-muted-foreground">Aucun lot disponible</p>
           )}
         </CardContent>
       </Card>
 
-      {/* Groups */}
       <Card>
         <CardHeader>
           <CardTitle>Groupements Créés ({groups.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {groups.length > 0 ? (
-            <div className="space-y-3">
-              {groups.map((group) => (
-                <div key={group.groupId} className="border rounded p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold">{group.coopName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {group.lotIds.length} lots • {group.totalWeight} kg
-                      </p>
+            <div className="space-y-4">
+              {groups.map((group) => {
+                const groupLot = group.groupLotId ? getLotById(group.groupLotId) : undefined
+
+                return (
+                  <div key={group.groupId} className="rounded-xl border p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">{group.coopName}</p>
+                          <Badge variant="secondary">{group.lotIds.length} lots</Badge>
+                          <Badge variant="outline">{group.totalWeight} kg</Badge>
+                          {groupLot ? <Badge>{groupLot.statut}</Badge> : null}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Le lot maître suit ensuite le même parcours que n’importe quel lot de la
+                          chaîne.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {group.lotIds.map((lotId) => (
+                            <Button
+                              key={lotId}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 rounded-full border px-3 text-xs"
+                              onClick={() => openLot(lotId)}
+                            >
+                              {lotId}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-start gap-2 lg:items-end">
+                        {groupLot ? (
+                          <Button onClick={() => openLot(groupLot.lotId)} variant="outline">
+                            Ouvrir le groupement
+                          </Button>
+                        ) : null}
+                        <p className="text-xs text-muted-foreground">
+                          Créé le {new Date(group.createdAt).toLocaleString("fr-FR")}
+                        </p>
+                      </div>
                     </div>
-                    <Badge>{group.totalWeight} kg</Badge>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-4">Aucun groupement créé</p>
+            <p className="py-4 text-center text-muted-foreground">Aucun groupement créé</p>
           )}
         </CardContent>
       </Card>
+
+      <LotDetailModal lot={selectedLot} open={lotDetailOpen} onOpenChange={setLotDetailOpen} />
     </div>
   )
 }

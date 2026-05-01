@@ -61,7 +61,6 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
       { title: "Nouveau lot", href: "/agriculteur/nouveau-lot", icon: FolderTree },
       { title: "Historique", href: "/agriculteur/historique", icon: FolderTree },
       { title: "Expéditions", href: "/agriculteur/expedition", icon: Truck },
-      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
       { title: "Profil", href: "/agriculteur/profil", icon: UserRound },
     ],
     footerItems: [
@@ -91,14 +90,14 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     label: "Transformer",
     dashboardPath: "/transformer",
     description: "Réception, transformation et contrôle qualité",
-    ctaLabel: "Voir les lots",
+    ctaLabel: "Voir les lots à traiter",
     ctaHref: "/transformer/lots",
     items: [
       { title: "Accueil", href: "/transformer", icon: Home },
       { title: "Lots à traiter", href: "/transformer/lots", icon: PackageOpen },
     ],
     footerItems: [
-      { title: "Qualité", href: "/transformer/lots", icon: ClipboardCheck },
+      { title: "Qualité", href: "/transformer", icon: ClipboardCheck },
       { title: "Support", href: "/support", icon: CheckCircle2 },
     ],
   },
@@ -129,6 +128,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/carrier", icon: Home },
       { title: "Ordres", href: "/carrier/ordres", icon: Truck },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Suivi GPS", href: "/carrier/ordres", icon: MapPin },
@@ -145,6 +145,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/verifier", icon: Home },
       { title: "Vérification", href: "/verifier/lot", icon: CheckCircle2 },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Rapports", href: "/verifier/lot", icon: ChartColumn },
@@ -161,6 +162,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/importer", icon: Home },
       { title: "Conformité", href: "/importer/conformite", icon: Languages },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Dossiers", href: "/importer/conformite", icon: FolderTree },
@@ -177,6 +179,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/ministry", icon: Home },
       { title: "Rapports", href: "/ministry/rapports", icon: ChartColumn },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Données", href: "/ministry/rapports", icon: FolderTree },
@@ -193,6 +196,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/admin", icon: Home },
       { title: "Utilisateurs", href: "/admin/utilisateurs", icon: Crown },
+      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Paramètres", href: "/admin/utilisateurs", icon: Building2 },

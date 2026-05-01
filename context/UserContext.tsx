@@ -12,6 +12,7 @@ export interface UserContextType {
   setUser: (user: User) => void
   logout: () => void
   switchRole: (role: UserRole) => void
+  switchAccount: (userId: string, role?: UserRole | null) => void
   canAccess: (requiredRole: UserRole) => boolean
   isLoading: boolean
 }
@@ -30,6 +31,7 @@ export function UserProvider({ children }: UserProviderProps) {
   const pathname = usePathname()
   const {
     getCurrentUser,
+    getUserById,
     setCurrentUser,
     setCurrentRole,
     currentRole,
@@ -80,6 +82,21 @@ export function UserProvider({ children }: UserProviderProps) {
     router.push("/auth")
   }, [router, setCurrentRole])
 
+  const switchAccount = useCallback(
+    (userId: string, role: UserRole | null = null) => {
+      const nextUser = getUserById(userId)
+      if (!nextUser) return
+
+      const nextRole = role ?? nextUser.roles[0] ?? null
+      setUserState(nextUser)
+      setActiveRole(nextRole)
+      setCurrentUser(nextUser.userId, nextRole)
+      setCurrentRole(nextRole)
+      router.push(getRoleRoute(nextRole))
+    },
+    [getUserById, router, setCurrentRole, setCurrentUser]
+  )
+
   const switchRole = useCallback(
     (role: UserRole) => {
       if (user && user.roles.includes(role)) {
@@ -105,6 +122,7 @@ export function UserProvider({ children }: UserProviderProps) {
     setUser,
     logout,
     switchRole,
+    switchAccount,
     canAccess,
     isLoading,
   }

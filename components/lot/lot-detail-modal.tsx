@@ -1,8 +1,16 @@
 "use client"
 
-import { useState } from "react"
-import { Lot } from "@/types/types"
+import { useRef, useState } from "react"
+import Link from "next/link"
+import { useQRCode } from "next-qrcode"
+import { Copy, Download, QrCode } from "lucide-react"
+
+import { useUser } from "@/context/useUser"
+import type { Lot } from "@/types/types"
 import { useLotActionsStore } from "@/store/lot-actions"
+import { useEUDRStore } from "@/store/eudr"
+import { LotActionsPanel } from "@/components/lot/lot-actions-panel"
+import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
 import {
   Dialog,
   DialogContent,
@@ -10,53 +18,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Download, Copy } from "lucide-react"
-
-// Simple QR generator
-function generateQRCode(text: string): string {
-  const canvas = document.createElement("canvas")
-  const ctx = canvas.getContext("2d")
-  if (!ctx) return ""
-
-  const size = 200
-  canvas.width = size
-  canvas.height = size
-
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(0, 0, size, size)
-
-  ctx.fillStyle = "#000000"
-  ctx.fillRect(0, 0, 10, size)
-  ctx.fillRect(0, 0, size, 10)
-  ctx.fillRect(size - 10, 0, 10, size)
-  ctx.fillRect(0, size - 10, size, 10)
-
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(i * 5, i * 5, 50 - i * 10, 50 - i * 10)
-  }
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(size - 60 + i * 5, i * 5, 50 - i * 10, 50 - i * 10)
-  }
-  for (let i = 0; i < 3; i++) {
-    ctx.fillRect(i * 5, size - 60 + i * 5, 50 - i * 10, 50 - i * 10)
-  }
-
-  ctx.fillStyle = "#000000"
-  const hash = text.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  for (let y = 60; y < size - 60; y += 10) {
-    for (let x = 60; x < size - 60; x += 10) {
-      if ((x + y + hash) % 3 === 0) {
-        ctx.fillRect(x, y, 5, 5)
-      }
-    }
-  }
-
-  return canvas.toDataURL()
-}
 
 interface LotDetailModalProps {
   lot: Lot | null
@@ -72,215 +38,451 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   exported: { label: "Exporté", color: "bg-green-100 text-green-800" },
 }
 
-const actionRoleColors: Record<string, string> = {
-  Agriculteur: "bg-green-100 text-green-800",
-  CoopManager: "bg-blue-100 text-blue-800",
-  Transformer: "bg-orange-100 text-orange-800",
-  Exporter: "bg-purple-100 text-purple-800",
-  Verifier: "bg-red-100 text-red-800",
-  CarrierUser: "bg-indigo-100 text-indigo-800",
-  Importer: "bg-pink-100 text-pink-800",
-  MinistryAnalyst: "bg-slate-100 text-slate-800",
-  Admin: "bg-gray-100 text-gray-800",
-}
-
-export function LotDetailModal({ lot, open, onOpenChange }: LotDetailModalProps) {
+export function LotDetailModal({
+  lot,
+  open,
+  onOpenChange,
+}: LotDetailModalProps) {
+  const { activeRole } = useUser()
+  const { Canvas } = useQRCode()
   const { getLotTimeline } = useLotActionsStore()
-  const [qrCode, setQrCode] = useState<string>("")
+  const { getEUDRForLot } = useEUDRStore()
+  const qrBoxRef = useRef<HTMLDivElement>(null)
+  const [copyLabel, setCopyLabel] = useState("Copier l'ID")
 
   if (!lot) return null
 
   const timeline = getLotTimeline(lot.lotId)
-  if (!qrCode) {
-    setQrCode(generateQRCode(lot.lotId))
+  const eudrRecord = getEUDRForLot(lot.lotId)
+  const qrValue = `chaincacao://lot/${lot.lotId}`
+  const metaActions = timeline.flatMap((action) => {
+    const metadata = action.metadata
+    if (!metadata || typeof metadata !== "object") return []
+    return [metadata as Record<string, unknown>]
+  })
+
+  const sourceLots = Array.from(
+    new Set(
+      metaActions.flatMap((metadata) => {
+        const value = metadata.sourceLots
+        return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+      })
+    )
+  )
+
+  const signedBy = Array.from(
+    new Set(
+      metaActions.flatMap((metadata) => {
+        const value = metadata.signedBy
+        return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+      })
+    )
+  )
+
+  const documents = Array.from(
+    new Set(
+      metaActions.flatMap((metadata) => {
+        const values: string[] = []
+        const document = metadata.document
+        if (typeof document === "string") values.push(document)
+
+        const docs = metadata.documents
+        if (Array.isArray(docs)) {
+          values.push(...docs.filter((item): item is string => typeof item === "string"))
+        }
+
+        const media = metadata.media
+        if (Array.isArray(media)) {
+          values.push(...media.filter((item): item is string => typeof item === "string"))
+        }
+
+        return values
+      })
+    )
+  )
+  const declaredSourceLots = Array.from(new Set([...(lot.sourceLotIds ?? []), ...sourceLots]))
+  const isGroupLot = Boolean(lot.isGroup || declaredSourceLots.length > 0)
+
+  const getSignatureLabel = (actorId: string) => {
+    const matchedAction = timeline.find((action) => action.actorId === actorId)
+    return matchedAction ? `${matchedAction.actorName} (${matchedAction.actor})` : actorId
   }
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("fr-FR")
+  const copyLotId = async () => {
+    await navigator.clipboard.writeText(lot.lotId)
+    setCopyLabel("ID copié")
+    setTimeout(() => setCopyLabel("Copier l'ID"), 1500)
+  }
+
+  const downloadQRCode = () => {
+    const canvas = qrBoxRef.current?.querySelector("canvas")
+    if (!canvas) return
+
+    const link = document.createElement("a")
+    link.href = canvas.toDataURL("image/png")
+    link.download = `${lot.lotId}-qr.png`
+    link.click()
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{lot.lotId}</DialogTitle>
-          <DialogDescription>Détails complets et historique du lot</DialogDescription>
+          <DialogDescription>
+            Vue détaillée du lot avec QR, historique et validations des acteurs.
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details">Détails</TabsTrigger>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Vue d’ensemble</TabsTrigger>
             <TabsTrigger value="qr">QR Code</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
+            <TabsTrigger value="timeline">Historique ({timeline.length})</TabsTrigger>
+            <TabsTrigger value="actions">Actions</TabsTrigger>
+            <TabsTrigger value="conformite">Conformité</TabsTrigger>
           </TabsList>
 
-          {/* Details Tab */}
-          <TabsContent value="details" className="space-y-4 mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Informations Principales</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Espèce</p>
-                  <p className="font-semibold">{lot.espece}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Poids</p>
-                  <p className="font-semibold">{lot.poidsKg} kg</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Région</p>
-                  <p className="font-semibold">{lot.region}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Coopérative</p>
-                  <p className="font-semibold">{lot.coopName}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Statut Actuel</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
-                  {statusLabels[lot.statut]?.label || lot.statut}
-                </Badge>
-                <p className="text-sm text-muted-foreground">
-                  Synchronisation: {lot.syncStatus === "synced" ? "✓ Synchro" : "⏳ En attente"}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Localisation GPS</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-sm">
+          <TabsContent value="overview" className="mt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Informations principales</CardTitle>
+                  <CardDescription>
+                    Données de production et de collecte
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-muted-foreground">Latitude</p>
-                    <p className="font-mono font-semibold">{lot.gps.latitude.toFixed(6)}°</p>
+                    <p className="text-sm text-muted-foreground">Espèce</p>
+                    <p className="font-semibold">{lot.espece}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Longitude</p>
-                    <p className="font-mono font-semibold">{lot.gps.longitude.toFixed(6)}°</p>
+                    <p className="text-sm text-muted-foreground">Poids</p>
+                    <p className="font-semibold">{lot.poidsKg} kg</p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Dates</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Créé</p>
-                  <p>{formatDate(lot.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Modifié</p>
-                  <p>{formatDate(lot.updatedAt)}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* QR Code Tab */}
-          <TabsContent value="qr" className="mt-4">
-            <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-              <CardHeader>
-                <CardTitle className="text-center">Code de Transfert</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center space-y-4">
-                {qrCode && (
-                  <div className="bg-white p-4 rounded border-2 border-amber-200">
-                    <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Région</p>
+                    <p className="font-semibold">{lot.region}</p>
                   </div>
-                )}
-                <p className="text-sm text-center text-amber-900">
-                  Scannez ce code pour partager les détails du lot
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      if (qrCode) {
-                        const link = document.createElement("a")
-                        link.href = qrCode
-                        link.download = `${lot.lotId}-qr.png`
-                        link.click()
-                      }
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                    Télécharger
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(lot.lotId)
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                    Copier ID
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Coopérative</p>
+                    <p className="font-semibold">{lot.coopName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">GPS</p>
+                    <p className="font-semibold">
+                      {lot.gps.latitude.toFixed(4)}, {lot.gps.longitude.toFixed(4)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date collecte</p>
+                    <p className="font-semibold">
+                      {new Date(lot.dateCollecte).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Timeline Tab */}
-          <TabsContent value="timeline" className="mt-4">
-            <div className="space-y-3">
-              {timeline.length > 0 ? (
-                timeline.map((action, idx) => (
-                  <div key={action.actionId} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                        {idx + 1}
-                      </div>
-                      {idx < timeline.length - 1 && <div className="w-0.5 h-12 bg-gray-200 my-2" />}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">État du lot</CardTitle>
+                  <CardDescription>
+                    Statut métier et synchronisation hors chaîne
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
+                    {statusLabels[lot.statut]?.label || lot.statut}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">
+                    Synchronisation: {lot.syncStatus}
+                  </p>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Créé par</p>
+                      <p className="font-semibold">{lot.createdBy}</p>
                     </div>
-                    <div className="flex-1 pb-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <Badge className={actionRoleColors[action.actor] || "bg-gray-100"}>
-                            {action.actor}
+                    <div>
+                      <p className="text-muted-foreground">Créé le</p>
+                      <p className="font-semibold">
+                        {new Date(lot.createdAt).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Mis à jour</p>
+                      <p className="font-semibold">
+                        {new Date(lot.updatedAt).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Photos</p>
+                      <p className="font-semibold">{lot.photoUrls.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {isGroupLot ? (
+              <Card className="border-dashed">
+                <CardHeader>
+                  <CardTitle className="text-base">Groupement coopératif</CardTitle>
+                  <CardDescription>
+                    Le groupement est traité comme un lot maître pour la suite de la chaîne.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">Lot maître</Badge>
+                    <Badge variant="outline">{declaredSourceLots.length} lots sources</Badge>
+                    {lot.groupName ? <Badge>{lot.groupName}</Badge> : null}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Lots du groupement</p>
+                    <div className="flex flex-wrap gap-2">
+                      {declaredSourceLots.length > 0 ? (
+                        declaredSourceLots.map((sourceLot) => (
+                          <Badge key={sourceLot} variant="secondary" className="rounded-full">
+                            {sourceLot}
                           </Badge>
-                          <p className="font-semibold mt-1">{action.actorName}</p>
-                          <p className="text-sm text-muted-foreground">{action.action}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(action.timestamp)}
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Aucun lot source renseigné sur ce groupement.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Lots sources</CardTitle>
+                  <CardDescription>
+                    Conservation de la traçabilité des lots regroupés
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {sourceLots.length > 0 ? (
+                    sourceLots.map((sourceLot) => (
+                      <Badge key={sourceLot} variant="secondary" className="rounded-full">
+                        {sourceLot}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun lot source enregistré pour le moment.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Signatures</CardTitle>
+                  <CardDescription>
+                    Acteurs ayant signé ou validé les étapes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {signedBy.length > 0 ? (
+                    signedBy.map((actorId) => (
+                      <div
+                        key={actorId}
+                        className="rounded-xl border bg-background/80 px-3 py-2 text-sm"
+                      >
+                        {getSignatureLabel(actorId)}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Aucune signature enregistrée.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Documents</CardTitle>
+                  <CardDescription>
+                    Pièces justificatives liées au lot
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {documents.length > 0 ? (
+                    documents.map((document) => (
+                      <div
+                        key={document}
+                        className="rounded-xl border bg-background/80 px-3 py-2 text-sm"
+                      >
+                        {document}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Aucun document joint.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="qr" className="mt-4">
+            <div className="grid gap-4 md:grid-cols-[320px_1fr]">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <QrCode className="h-4 w-4" />
+                    QR du lot
+                  </CardTitle>
+                  <CardDescription>
+                    À scanner pour ouvrir le lot dans le système.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div ref={qrBoxRef} className="rounded-2xl border bg-white p-4">
+                    <Canvas
+                      text={qrValue}
+                      options={{
+                        width: 220,
+                        margin: 2,
+                        errorCorrectionLevel: "M",
+                        color: {
+                          dark: "#111827",
+                          light: "#FFFFFF",
+                        },
+                      }}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={copyLotId} variant="outline" className="flex-1">
+                      <Copy className="h-4 w-4" />
+                      {copyLabel}
+                    </Button>
+                    <Button onClick={downloadQRCode} variant="outline" className="flex-1">
+                      <Download className="h-4 w-4" />
+                      Télécharger
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Informations de scan</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Valeur encodée</p>
+                    <p className="break-all rounded-xl bg-muted p-3 font-mono text-sm">
+                      {qrValue}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Usage</p>
+                    <p className="text-sm">
+                      Le QR ouvre l’historique complet du lot et permet de vérifier la chaîne de
+                      validation de chaque acteur.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="timeline" className="mt-4">
+            <LotWorkflowTimeline lot={lot} timeline={timeline} />
+          </TabsContent>
+
+          <TabsContent value="actions" className="mt-4 space-y-3">
+            <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+              {activeRole
+                ? `Le rôle ${activeRole} peut intervenir depuis cette zone si une action est disponible.`
+                : "Connectez-vous pour voir les actions disponibles sur ce lot."}
+            </div>
+            <LotActionsPanel lot={lot} />
+          </TabsContent>
+
+          <TabsContent value="conformite" className="mt-4 space-y-4">
+            {eudrRecord ? (
+              <>
+                <Card className="border-dashed">
+                  <CardHeader>
+                    <CardTitle className="text-base">Fiche de conformité disponible</CardTitle>
+                    <CardDescription>
+                      Cette fiche peut être consultée à tout moment depuis l’historique du lot.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-2xl bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Score ESG</p>
+                        <p className="mt-1 text-2xl font-bold">{eudrRecord.esgScore}</p>
+                      </div>
+                      <div className="rounded-2xl bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Risque pays</p>
+                        <p className="mt-1 text-lg font-semibold capitalize">
+                          {eudrRecord.countryRisk}
                         </p>
                       </div>
-                      <Card className="mt-2 bg-muted/50">
-                        <CardContent className="pt-4">
-                          <p className="text-sm">{action.description}</p>
-                          {Object.keys(action.metadata || {}).length > 0 && (
-                            <div className="text-xs text-muted-foreground mt-2">
-                              {Object.entries(action.metadata || {}).map(([key, value]) => (
-                                <p key={key}>
-                                  <span className="font-medium">{key}:</span> {String(value)}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                      <div className="rounded-2xl bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Statut</p>
+                        <p className="mt-1 text-lg font-semibold">{eudrRecord.eudrStatus}</p>
+                      </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground py-8">Aucune action enregistrée</p>
-              )}
-            </div>
+
+                    <div className="rounded-2xl border bg-background/80 p-4 text-sm">
+                      <p className="font-medium">Dernière confirmation</p>
+                      <p className="text-muted-foreground">
+                        {new Date(eudrRecord.timestamp).toLocaleString("fr-FR")}
+                      </p>
+                      <p className="mt-2 text-muted-foreground">
+                        Shipment: {eudrRecord.shipmentId}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild className="rounded-full">
+                        <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
+                          Ouvrir la fiche complète
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" className="rounded-full">
+                        <Link href={`/exporter/historique?lotId=${encodeURIComponent(lot.lotId)}`}>
+                          Voir l’historique conformité
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card className="border-dashed">
+                <CardHeader>
+                  <CardTitle className="text-base">Fiche de conformité non encore disponible</CardTitle>
+                  <CardDescription>
+                    Dès qu’une vérification EUDR est confirmée, elle apparaîtra ici pour les auteurs et les autres rôles autorisés.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Le lot peut toujours être suivi dans l’historique général, mais la fiche exporteur n’est visible qu’après confirmation.
+                  </p>
+                  <Button asChild variant="outline" className="rounded-full">
+                    <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
+                      Aller à la conformité
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>

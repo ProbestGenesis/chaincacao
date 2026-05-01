@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useUser } from "@/context/useUser"
 import { useLotsStore } from "@/store/lots"
+import { useLotActionsStore } from "@/store/lot-actions"
 import { EnhancedLotForm } from "@/components/forms/enhanced-lot-form"
 import { Card } from "@/components/ui/card"
 import type { LotFormData } from "@/lib/schemas/lot"
@@ -11,6 +12,7 @@ export default function NouveauLotPage() {
   const router = useRouter()
   const { user } = useUser()
   const { addLot } = useLotsStore()
+  const { addAction } = useLotActionsStore()
 
   const handleSubmit = async (data: LotFormData) => {
     if (!user) return
@@ -32,6 +34,23 @@ export default function NouveauLotPage() {
         statut: "draft",
         syncStatus: "pending",
         createdBy: user.userId,
+      })
+
+      addAction({
+        lotId: lot.lotId,
+        actor: "Agriculteur",
+        actorName: user.nomAffiche,
+        actorId: user.userId,
+        action: "created",
+        phase: "recolte",
+        status: "draft",
+        description:
+          "Enregistrement de récolte créé depuis la parcelle avec GPS et photos.",
+        metadata: {
+          gps: lot.gps,
+          region: lot.region,
+          photos: lot.photoUrls.length,
+        },
       })
 
       router.push(`/agriculteur/lots/${lot.lotId}`)

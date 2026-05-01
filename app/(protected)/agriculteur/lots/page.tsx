@@ -53,6 +53,7 @@ export default function MesLotsPage() {
                     <th className="text-left py-3 px-4 font-semibold">Région</th>
                     <th className="text-left py-3 px-4 font-semibold">Statut</th>
                     <th className="text-left py-3 px-4 font-semibold">Coop</th>
+                    <th className="text-left py-3 px-4 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -68,6 +69,11 @@ export default function MesLotsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-xs">{lot.coopName}</td>
+                      <td className="py-3 px-4">
+                        <Button asChild variant="outline" size="sm" className="rounded-full">
+                          <Link href={`/agriculteur/lots/${lot.lotId}`}>Voir</Link>
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

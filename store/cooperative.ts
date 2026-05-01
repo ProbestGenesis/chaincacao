@@ -1,12 +1,16 @@
+import { LotStatus } from '@/types/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface CooperativeGroup {
   groupId: string;
+  groupLotId?: string;
   coopName: string;
   lotIds: string[];
   managerId: string;
   totalWeight: number;
+  status: LotStatus;
+  syncStatus: 'synced' | 'pending' | 'error';
   createdAt: number;
   updatedAt: number;
 }
@@ -19,6 +23,8 @@ interface CooperativeStore {
     lotIds: string[],
     totalWeight: number
   ) => CooperativeGroup;
+  setGroupLotId: (groupId: string, groupLotId: string) => void;
+  updateGroupStatus: (groupId: string, status: LotStatus) => void;
   addLotsToGroup: (groupId: string, lotIds: string[], additionalWeight: number) => void;
   removeLotsFromGroup: (groupId: string, lotIds: string[], removedWeight: number) => void;
   getGroupsByManager: (managerId: string) => CooperativeGroup[];
@@ -40,6 +46,8 @@ export const useCooperativeStore = create(
           lotIds,
           managerId,
           totalWeight,
+          status: 'transferred',
+          syncStatus: 'pending',
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -50,6 +58,32 @@ export const useCooperativeStore = create(
 
         return newGroup;
       },
+
+      setGroupLotId: (groupId, groupLotId) =>
+        set((state) => ({
+          groups: state.groups.map((group) =>
+            group.groupId === groupId
+              ? {
+                  ...group,
+                  groupLotId,
+                  updatedAt: Date.now(),
+                }
+              : group
+          ),
+        })),
+
+      updateGroupStatus: (groupId, status) =>
+        set((state) => ({
+          groups: state.groups.map((group) =>
+            group.groupId === groupId
+              ? {
+                  ...group,
+                  status,
+                  updatedAt: Date.now(),
+                }
+              : group
+          ),
+        })),
 
       addLotsToGroup: (groupId, lotIds, additionalWeight) =>
         set((state) => ({

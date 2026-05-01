@@ -33,6 +33,37 @@ export default function HistoriquePage() {
         </Button>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Vérifications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{records.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Confirmées</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-green-600">
+              {records.filter((record) => record.status === "confirmed").length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">En attente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold text-orange-600">
+              {records.filter((record) => record.status !== "confirmed").length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Vérifications EUDR Confirmées ({records.length})</CardTitle>
@@ -83,6 +114,15 @@ export default function HistoriquePage() {
                     <p className="text-xs text-muted-foreground">
                       Lots: {record.lotIds.join(", ")}
                     </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {record.lotIds.map((lotId) => (
+                        <Button asChild key={lotId} size="sm" variant="outline" className="rounded-full">
+                          <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lotId)}`}>
+                            Voir le lot
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}

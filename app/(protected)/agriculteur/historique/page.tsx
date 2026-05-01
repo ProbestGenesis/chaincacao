@@ -1,25 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { useUser } from "@/context/useUser"
-import { useLotsStore } from "@/store/lots"
+import Link from "next/link"
+import { ArrowLeft, ChevronRight } from "lucide-react"
+
+import { LotDetailModal } from "@/components/lot/lot-detail-modal"
+import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
 import { useLotActionsStore } from "@/store/lot-actions"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useLotsStore } from "@/store/lots"
+import { useUser } from "@/context/useUser"
+import type { Lot } from "@/types/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ChevronRight } from "lucide-react"
-import Link from "next/link"
-import { LotDetailModal } from "@/components/lot/lot-detail-modal"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function HistoriquePage() {
   const { user } = useUser()
   const { getLotsForFarmer } = useLotsStore()
   const { getLotTimeline } = useLotActionsStore()
-  const [selectedLot, setSelectedLot] = useState<any>(null)
+  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
   const lots = user ? getLotsForFarmer(user.userId) : []
-  const sortedLots = [...lots].reverse()
+  const sortedLots = [...lots].sort((a, b) => b.updatedAt - a.updatedAt)
 
   const statusLabels: Record<string, { label: string; color: string }> = {
     draft: { label: "Brouillon", color: "bg-gray-100 text-gray-800" },
@@ -29,19 +32,20 @@ export default function HistoriquePage() {
     exported: { label: "Exporté", color: "bg-green-100 text-green-800" },
   }
 
-  const handleOpenDetail = (lot: any) => {
-    setSelectedLot(lot)
-    setModalOpen(true)
-  }
-
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Historique des Lots</h1>
-          <p className="text-muted-foreground mt-1">Suivi complet et transparent de chaque lot</p>
+          <Badge variant="secondary" className="rounded-full">
+            Traçabilité du producteur
+          </Badge>
+          <h1 className="mt-2 text-3xl font-bold">Historique des lots</h1>
+          <p className="mt-1 max-w-2xl text-muted-foreground">
+            Chaque lot conserve l’état d’avancement, les validations de chaque acteur et les
+            preuves associées à son parcours.
+          </p>
         </div>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="rounded-full">
           <Link href="/agriculteur">
             <ArrowLeft className="h-4 w-4" />
             Retour
@@ -49,28 +53,32 @@ export default function HistoriquePage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="border-dashed">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Total</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Total</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{sortedLots.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-dashed">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">En cours</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">En cours</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-yellow-600">
-              {sortedLots.filter((l) => l.statut === "pending" || l.statut === "transferred").length}
+              {
+                sortedLots.filter(
+                  (l) => l.statut === "pending" || l.statut === "transferred"
+                ).length
+              }
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-dashed">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Transformés</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Transformés</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-orange-600">
@@ -78,9 +86,9 @@ export default function HistoriquePage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-dashed">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Exportés</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">Exportés</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
@@ -92,58 +100,69 @@ export default function HistoriquePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Chronologie ({sortedLots.length})</CardTitle>
+          <CardTitle>Chronologie des lots</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {sortedLots.length > 0 ? (
-              sortedLots.map((lot) => {
-                const timeline = getLotTimeline(lot.lotId)
-                const lastAction = timeline[timeline.length - 1]
+        <CardContent className="space-y-3">
+          {sortedLots.length > 0 ? (
+            sortedLots.map((lot) => {
+              const timeline = getLotTimeline(lot.lotId)
+              const lastAction = timeline[timeline.length - 1]
 
-                return (
-                  <button
-                    key={lot.lotId}
-                    onClick={() => handleOpenDetail(lot)}
-                    className="w-full border rounded-lg p-4 hover:bg-muted/50 transition text-left"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <p className="font-mono font-semibold text-sm">{lot.lotId}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Créé {new Date(lot.createdAt).toLocaleDateString("fr-FR")}
+              return (
+                <button
+                  key={lot.lotId}
+                  onClick={() => {
+                    setSelectedLot(lot)
+                    setModalOpen(true)
+                  }}
+                  className="w-full rounded-2xl border p-4 text-left transition hover:border-primary/60 hover:bg-muted/30"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-mono text-sm font-semibold">{lot.lotId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Créé le {new Date(lot.createdAt).toLocaleDateString("fr-FR")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
+                            {statusLabels[lot.statut]?.label || lot.statut}
+                          </Badge>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+
+                      <p className="text-sm">
+                        {lot.poidsKg} kg • {lot.espece} • {lot.region}
+                      </p>
+
+                      {lastAction ? (
+                        <div className="rounded-xl border bg-background/80 p-3 text-sm">
+                          <p className="font-medium">Dernière validation</p>
+                          <p className="text-muted-foreground">
+                            {lastAction.phase} • {lastAction.actorName} ({lastAction.actor})
+                          </p>
+                          <p className="mt-1">{lastAction.description}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Aucune validation enregistrée.
                         </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
-                          {statusLabels[lot.statut]?.label || lot.statut}
-                        </Badge>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
+                      )}
                     </div>
 
-                    <p className="text-sm mb-2">
-                      {lot.poidsKg} kg • {lot.espece} • {lot.region}
-                    </p>
-
-                    {lastAction && (
-                      <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded mt-2">
-                        Dernière action: <span className="font-medium">{lastAction.actorName}</span> ({lastAction.actor}) - {lastAction.description}
-                      </div>
-                    )}
-
-                    {timeline.length > 0 && (
-                      <div className="text-xs text-muted-foreground mt-2">
-                        {timeline.length} action{timeline.length > 1 ? "s" : ""} enregistrée{timeline.length > 1 ? "s" : ""}
-                      </div>
-                    )}
-                  </button>
-                )
-              })
-            ) : (
-              <p className="text-center text-muted-foreground py-8">Aucun lot</p>
-            )}
-          </div>
+                    <div className="w-full max-w-xl">
+                      <LotWorkflowTimeline lot={lot} timeline={timeline} compact />
+                    </div>
+                  </div>
+                </button>
+              )
+            })
+          ) : (
+            <p className="py-10 text-center text-muted-foreground">Aucun lot créé pour le moment</p>
+          )}
         </CardContent>
       </Card>
 

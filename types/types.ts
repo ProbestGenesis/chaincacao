@@ -49,6 +49,10 @@ export interface Lot {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+  isGroup?: boolean;
+  groupId?: string;
+  groupName?: string;
+  sourceLotIds?: string[];
 }
 
 export interface TransportOrder {

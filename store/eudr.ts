@@ -19,6 +19,7 @@ interface EUDRStore {
   getEUDRRecord: (shipmentId: string) => EUDRRecord | undefined;
   updateEUDRStatus: (shipmentId: string, status: string) => void;
   getEUDRByExporter: (exporterId: string) => EUDRRecord[];
+  getEUDRForLot: (lotId: string) => EUDRRecord | undefined;
 }
 
 export const useEUDRStore = create(
@@ -54,6 +55,13 @@ export const useEUDRStore = create(
       getEUDRByExporter: (exporterId: string) => {
         const { eudrRecords } = get();
         return eudrRecords.filter((r) => r.confirmedBy === exporterId);
+      },
+
+      getEUDRForLot: (lotId: string) => {
+        const { eudrRecords } = get();
+        return [...eudrRecords]
+          .reverse()
+          .find((record) => record.lotIds.includes(lotId));
       },
     }),
     {
