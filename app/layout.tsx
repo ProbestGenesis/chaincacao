@@ -1,11 +1,6 @@
 import { Figtree, Geist_Mono, Nunito_Sans } from "next/font/google"
 
-import { ThemeProvider } from "@/components/theme-provider"
-import {
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import  AppSidebar  from "@/components/utils/appSidebar"
+import { AppProviders } from "@/app/providers"
 import { cn } from "@/lib/utils"
 import "./globals.css"
 
@@ -39,17 +34,7 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main className="w-full">
-               <nav className="fixed top-0 z-10 border-b bg-white dark:bg-background w-full h-12">
-                <SidebarTrigger />
-                </nav> 
-             <div className="pt-12">{children} </div> 
-            </main>
-          </SidebarProvider>
-        </ThemeProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   )

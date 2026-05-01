@@ -1,21 +1,17 @@
 "use client"
 
-import { GalleryVerticalEnd } from "lucide-react"
-
+import Illu from "@/assets/loginIlllu.jpg"
+import logo from "@/assets/smartKakaoLogo.png"
 import { MultiStepSignupForm } from "@/components/multi-step-signup-form"
-import type { RegistrationFormData } from "@/lib/schemas/registration"
-import {  useState } from "react"
+import Image from "next/image"
 
 export default function SignupPage() {
-  const [registerData, setRegisterData] = useState< RegistrationFormData>()
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="#" className="flex items-center gap-2 font-medium">
-            <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
+            <Image src={logo} alt="Logo" className="size-6" />
             Chaincacao
           </a>
         </div>
@@ -26,9 +22,9 @@ export default function SignupPage() {
         </div>
       </div>
       <div className="relative hidden bg-muted lg:block">
-        <img
-          src="/placeholder.svg"
-          alt="Image"
+        <Image
+          src={Illu}
+          alt="Image d'inscription"
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />
       </div>

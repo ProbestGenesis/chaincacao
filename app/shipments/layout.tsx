@@ -1,9 +1,22 @@
-import React from 'react'
+import type React from "react"
 
-function layout({children}:{children:React.ReactNode}) {
+import { ProtectedShell } from "@/components/layout/protected-shell"
+import { RoleGuard } from "@/components/layout/role-guard"
+
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div>{children}</div>
+    <RoleGuard
+      allowedRoles={[
+        "Transformer",
+        "Exporter",
+        "CarrierUser",
+        "Verifier",
+        "Importer",
+        "MinistryAnalyst",
+        "Admin",
+      ]}
+    >
+      <ProtectedShell>{children}</ProtectedShell>
+    </RoleGuard>
   )
 }
-
-export default layout

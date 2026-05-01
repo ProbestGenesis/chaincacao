@@ -10,6 +10,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { useUser } from "@/context/useUser"
 import {
+  getRoleRoute,
+  roleFromSignupRoleId,
+} from "@/lib/navigation/role-config"
+import {
   AVAILABLE_ROLES,
   registrationSchema,
   type RegistrationFormData,
@@ -25,18 +29,17 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { ScrollArea } from "./ui/scroll-area"
 
-
 type FormData = RegistrationFormData
 
 const roleMapping: Record<string, UserRole> = {
-  agriculteur: 'Agriculteur',
-  'coop-manager': 'CoopManager',
-  transformer: 'Transformer',
-  exporter: 'Exporter',
-  'carrier-user': 'CarrierUser',
-  verifier: 'Verifier',
-  importer: 'Importer',
-  'ministry-analyst': 'MinistryAnalyst',
+  agriculteur: "Agriculteur",
+  "coop-manager": "CoopManager",
+  transformer: "Transformer",
+  exporter: "Exporter",
+  "carrier-user": "CarrierUser",
+  verifier: "Verifier",
+  importer: "Importer",
+  "ministry-analyst": "MinistryAnalyst",
 }
 
 export function MultiStepSignupForm({ className }: { className?: string }) {
@@ -62,20 +65,20 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
 
   const steps = [
     {
-      title: "Personal Information",
-      description: "Let's start with your basic details",
+      title: "Informations personnelles",
+      description: "Commençons par vos informations de base",
     },
     {
-      title: "Create Password",
-      description: "Set up a secure password for your account",
+      title: "Créer un mot de passe",
+      description: "Définissez un mot de passe sécurisé pour votre compte",
     },
     {
-      title: "Select Your Role",
-      description: "Choose your role in the supply chain",
+      title: "Sélectionnez votre rôle",
+      description: "Choisissez votre rôle dans la chaîne d'approvisionnement",
     },
     {
-      title: "Review & Complete",
-      description: "Verify your information before creating your account",
+      title: "Vérifier et terminer",
+      description: "Vérifiez vos informations avant de créer votre compte",
     },
   ]
 
@@ -120,12 +123,15 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
       // Create new user object
+      const primaryRole = roleFromSignupRoleId(data.roles[0])
       const newUser = {
         userId: `user_${Date.now()}`,
         email: data.email,
         telephone: data.telephone,
         nomAffiche: data.nomAffiche,
-        roles: data.roles.map(role => roleMapping[role] || role) as UserRole[],
+        roles: data.roles.map(
+          (role) => roleMapping[role] || role
+        ) as UserRole[],
         statut: "actif" as const,
         dateCreation: Date.now(),
         derniereConnexion: Date.now(),
@@ -135,10 +141,9 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
       setUser(newUser)
       addUser(newUser)
 
-      // Redirect to dashboard
-      router.push("/")
+      router.push(getRoleRoute(primaryRole))
     } catch (err) {
-      setError("Registration failed. Please try again.")
+      setError("Échec de l'inscription. Veuillez réessayer.")
       console.error("Registration error:", err)
     } finally {
       setIsSubmitting(false)
@@ -203,11 +208,11 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                   </div>
 
                   <Field>
-                    <FieldLabel htmlFor="nomAffiche">Full Name</FieldLabel>
+                    <FieldLabel htmlFor="nomAffiche">Nom complet</FieldLabel>
                     <Input
                       id="nomAffiche"
                       type="text"
-                      placeholder="John Doe"
+                      placeholder="Jean Dupont"
                       className="bg-background"
                       {...register("nomAffiche")}
                     />
@@ -219,7 +224,7 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <FieldLabel htmlFor="email">E-mail</FieldLabel>
                     <Input
                       id="email"
                       type="email"
@@ -233,16 +238,19 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                       </p>
                     )}
                     <FieldDescription>
-                      We'll use this to contact you and verify your account
+                      Nous utiliserons cet e‑mail pour vous contacter et
+                      vérifier votre compte
                     </FieldDescription>
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="telephone">Phone Number</FieldLabel>
+                    <FieldLabel htmlFor="telephone">
+                      Numéro de téléphone
+                    </FieldLabel>
                     <Input
                       id="telephone"
                       type="tel"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="+33 6 00 00 00 00"
                       className="bg-background"
                       {...register("telephone")}
                     />
@@ -266,7 +274,7 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                   </div>
 
                   <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
                     <Input
                       id="password"
                       type="password"
@@ -279,13 +287,13 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                       </p>
                     )}
                     <FieldDescription>
-                      Minimum 8 characters, 1 uppercase letter, and 1 number
+                      Minimum 8 caractères, 1 lettre majuscule et 1 chiffre
                     </FieldDescription>
                   </Field>
 
                   <Field>
                     <FieldLabel htmlFor="confirmPassword">
-                      Confirm Password
+                      Confirmer le mot de passe
                     </FieldLabel>
                     <Input
                       id="confirmPassword"
@@ -360,11 +368,14 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                   >
-                    <ReviewItem label="Full Name" value={watch("nomAffiche")} />
-                    <ReviewItem label="Email" value={watch("email")} />
-                    <ReviewItem label="Phone" value={watch("telephone")} />
                     <ReviewItem
-                      label="Roles"
+                      label="Nom complet"
+                      value={watch("nomAffiche")}
+                    />
+                    <ReviewItem label="E-mail" value={watch("email")} />
+                    <ReviewItem label="Téléphone" value={watch("telephone")} />
+                    <ReviewItem
+                      label="Rôles"
                       value={selectedRoles
                         .map(
                           (role) =>
@@ -388,16 +399,16 @@ export function MultiStepSignupForm({ className }: { className?: string }) {
             disabled={step === 0}
           >
             <ChevronLeft className="size-4" />
-            Previous
+            Précédent
           </Button>
 
           {step === steps.length - 1 ? (
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating Account..." : "Create Account"}
+              {isSubmitting ? "Création du compte..." : "Créer le compte"}
             </Button>
           ) : (
             <Button type="button" onClick={handleNext}>
-              Next
+              Suivant
               <ChevronRight className="size-4" />
             </Button>
           )}
