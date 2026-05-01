@@ -23,6 +23,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import type { Lot } from "@/types/types"
+import { translateStatus } from "@/lib/status-helper"
+import { getSourceLotIds } from "@/lib/lot-lineage"
 
 const averageCoordinates = (lots: Lot[]) => {
   if (lots.length === 0) {
@@ -48,15 +50,21 @@ export default function GestionLotsPage() {
   const { lots, addLot, getLotById } = useLotsStore()
   const { addAction } = useLotActionsStore()
   const { createGroup, getGroupsByManager, setGroupLotId } = useCooperativeStore()
+  const allGroups = useCooperativeStore((state) => state.groups)
   const [selectedLots, setSelectedLots] = useState<string[]>([])
   const [newGroupName, setNewGroupName] = useState("")
   const [open, setOpen] = useState(false)
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
+  const groupedLotIds = useMemo(
+    () => new Set(allGroups.flatMap((group) => group.lotIds)),
+    [allGroups]
+  )
   const coopLots = useMemo(
-    () => lots.filter((lot) => lot.coopName && !lot.isGroup),
-    [lots]
+    () => lots.filter((lot) => lot.coopName && !lot.isGroup && !groupedLotIds.has(lot.lotId)),
+    [groupedLotIds, lots]
   )
   const groups = user ? getGroupsByManager(user.userId) : []
 
@@ -65,6 +73,12 @@ export default function GestionLotsPage() {
 
     const sourceLots = lots.filter((lot) => selectedLots.includes(lot.lotId))
     if (sourceLots.length === 0) return
+
+    const alreadyGrouped = sourceLots.filter((lot) => groupedLotIds.has(lot.lotId))
+    if (alreadyGrouped.length > 0) {
+      setStatusMessage(`Ce lot a déjà été regroupé: ${alreadyGrouped[0].lotId}`)
+      return
+    }
 
     const totalWeight = sourceLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
     const groupBase = averageCoordinates(sourceLots)
@@ -112,12 +126,35 @@ export default function GestionLotsPage() {
       },
     })
 
+    getSourceLotIds(groupLot).forEach((sourceLotId) => {
+      addAction({
+        lotId: sourceLotId,
+        actor: "CoopManager",
+        actorName: user.nomAffiche,
+        actorId: user.userId,
+        action: "grouped",
+        phase: "regroupement",
+        status: "transferred",
+        description: `Lot intégré au groupement ${newGroupName}.`,
+        metadata: {
+          groupId: groupRecord.groupId,
+          groupName: newGroupName,
+          groupLotId: groupLot.lotId,
+          sourceLotId,
+          sourceLotIds,
+          sourceLotCount: sourceLotIds.length,
+          totalWeight,
+        },
+      })
+    })
+
     setGroupLotId(groupRecord.groupId, groupLot.lotId)
     setSelectedLots([])
     setNewGroupName("")
     setOpen(false)
     setSelectedLot(groupLot)
     setLotDetailOpen(true)
+    setStatusMessage(`Groupement ${newGroupName} créé avec succès.`)
   }
 
   const openLot = (lotId: string) => {
@@ -183,6 +220,7 @@ export default function GestionLotsPage() {
                       <input
                         type="checkbox"
                         checked={selectedLots.includes(lot.lotId)}
+                        disabled={groupedLotIds.has(lot.lotId)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setSelectedLots([...selectedLots, lot.lotId])
@@ -197,6 +235,11 @@ export default function GestionLotsPage() {
                     </label>
                   ))}
                 </div>
+                {coopLots.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aucun lot disponible pour un nouveau groupement.
+                  </p>
+                ) : null}
               </div>
 
               <Button
@@ -210,6 +253,12 @@ export default function GestionLotsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {statusMessage && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          {statusMessage}
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -244,7 +293,7 @@ export default function GestionLotsPage() {
                       <td className="px-4 py-3">{lot.poidsKg} kg</td>
                       <td className="px-4 py-3">{lot.region}</td>
                       <td className="px-4 py-3">
-                        <Badge variant="outline">{lot.statut}</Badge>
+                        <Badge variant="outline">{translateStatus(lot.statut)}</Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -281,7 +330,7 @@ export default function GestionLotsPage() {
                           <p className="font-semibold">{group.coopName}</p>
                           <Badge variant="secondary">{group.lotIds.length} lots</Badge>
                           <Badge variant="outline">{group.totalWeight} kg</Badge>
-                          {groupLot ? <Badge>{groupLot.statut}</Badge> : null}
+                          {groupLot ? <Badge>{translateStatus(groupLot.statut)}</Badge> : null}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Le lot maître suit ensuite le même parcours que n’importe quel lot de la

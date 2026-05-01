@@ -156,7 +156,7 @@ const roleActions: Record<UserRole, ActionTemplate[]> = {
 
 export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   const { user, activeRole } = useUser()
-  const { addAction } = useLotActionsStore()
+  const { addAction, hasLotAction } = useLotActionsStore()
   const { updateLotStatus } = useLotsStore()
 
   if (!user || !activeRole) return null
@@ -240,6 +240,8 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   }
 
   const handleAction = (template: ActionTemplate) => {
+    if (hasLotAction(lot.lotId, template.action, template.phase)) return
+
     addAction({
       lotId: lot.lotId,
       actor: activeRole,
@@ -261,7 +263,9 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
     }
   }
 
-  const actions = getActionsForLot()
+  const actions = getActionsForLot().filter(
+    (action) => !hasLotAction(lot.lotId, action.action, action.phase)
+  )
 
   if (!canAct() || actions.length === 0) {
     return (

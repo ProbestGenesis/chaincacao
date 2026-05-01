@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, CheckCircle2, Clock3, PackageOpen, RefreshCw, Truck } from "lucide-react"
 import Link from "next/link"
 import type { Lot } from "@/types/types"
+import { translateStatus } from "@/lib/status-helper"
 
 export function TransformerDashboard() {
   const { user, activeRole } = useUser()
@@ -204,7 +205,7 @@ export function TransformerDashboard() {
                             {lot.espece} • {lot.poidsKg} kg • {lot.region}
                           </p>
                         </div>
-                        <Badge variant="secondary">{lot.statut}</Badge>
+                        <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
                       </div>
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -258,7 +259,7 @@ export function TransformerDashboard() {
                       <div>
                         <p className="text-sm font-semibold">{lot.lotId}</p>
                         <p className="text-xs text-muted-foreground">
-                          {lot.statut} • {lot.poidsKg} kg
+                          {translateStatus(lot.statut)} • {lot.poidsKg} kg
                         </p>
                       </div>
                       <Badge variant="outline">{lastEvent?.actor ?? "Aucun"}</Badge>

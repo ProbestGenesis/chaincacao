@@ -10,8 +10,10 @@ import { SimpleRolePage } from "@/components/dashboard/simple-role-page"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useEUDRStore } from "@/store/eudr"
+import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { useUser } from "@/context/useUser"
+import { getLotLineageIds } from "@/lib/lot-lineage"
 
 export function ShipmentDashboard() {
   const { activeRole } = useUser()
@@ -30,6 +32,7 @@ function ExporterDashboard({ section }: { section: string | null }) {
   const records = useEUDRStore((state) => state.eudrRecords)
   const confirmEUDR = useEUDRStore((state) => state.confirmEUDR)
   const updateEUDRStatus = useEUDRStore((state) => state.updateEUDRStatus)
+  const addAction = useLotActionsStore((state) => state.addAction)
   const { user } = useUser()
 
   const exportableLots = lots.filter((lot) => lot.statut === "transferred" || lot.statut === "transformed")
@@ -64,15 +67,38 @@ function ExporterDashboard({ section }: { section: string | null }) {
                   className="rounded-xl"
                   onClick={() => {
                     if (!user) return
+                    const lineageLotIds = getLotLineageIds(lot)
                     confirmEUDR({
                       shipmentId: lot.lotId,
-                      lotIds: [lot.lotId],
+                      lotIds: lineageLotIds,
                       confirmedBy: user.userId,
                       status: "confirmed",
                       eudrStatus: "approved",
                       diligenceDate: new Date().toISOString(),
                       countryRisk: "low",
                       esgScore: "98",
+                    })
+                    lineageLotIds.forEach((lotId) => {
+                      addAction({
+                        lotId,
+                        actor: "Exporter",
+                        actorName: user.nomAffiche,
+                        actorId: user.userId,
+                        action: "verified",
+                        phase: "controle",
+                        status: "exported",
+                        description:
+                          lotId === lot.lotId
+                            ? "Confirmation EUDR enregistrée depuis le tableau de bord exporteur."
+                            : `Confirmation EUDR héritée du groupement ${lot.lotId}.`,
+                        metadata: {
+                          shipmentId: lot.lotId,
+                          lotId,
+                          groupLotId: lot.isGroup ? lot.lotId : undefined,
+                          confirmedLotIds: lineageLotIds,
+                          eudrStatus: "approved",
+                        },
+                      })
                     })
                     updateEUDRStatus(lot.lotId, "approved")
                   }}

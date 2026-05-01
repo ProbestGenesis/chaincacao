@@ -18,11 +18,13 @@ interface LotsStore {
 }
 
 const generateLotId = () => `LOT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+const sortLotsByCreatedAtDesc = (lots: Lot[]) =>
+  [...lots].sort((a, b) => b.createdAt - a.createdAt);
 
 export const useLotsStore = create(
   persist<LotsStore>(
     (set, get) => ({
-      lots: mockLots,
+      lots: sortLotsByCreatedAtDesc(mockLots),
 
       addLot: (lotData) => {
         const newLot: Lot = {
@@ -33,7 +35,7 @@ export const useLotsStore = create(
         };
 
         set((state) => ({
-          lots: [...state.lots, newLot],
+          lots: sortLotsByCreatedAtDesc([newLot, ...state.lots]),
         }));
 
         return newLot;
@@ -41,10 +43,12 @@ export const useLotsStore = create(
 
       updateLotStatus: (lotId: string, status: LotStatus) =>
         set((state) => ({
-          lots: state.lots.map((lot) =>
-            lot.lotId === lotId
-              ? { ...lot, statut: status, updatedAt: Date.now() }
-              : lot
+          lots: sortLotsByCreatedAtDesc(
+            state.lots.map((lot) =>
+              lot.lotId === lotId
+                ? { ...lot, statut: status, updatedAt: Date.now() }
+                : lot
+            )
           ),
         })),
 
@@ -55,7 +59,9 @@ export const useLotsStore = create(
 
       getLotsForFarmer: (farmerId: string) => {
         const { lots } = get();
-        return lots.filter((lot) => lot.farmerId === farmerId);
+        return sortLotsByCreatedAtDesc(
+          lots.filter((lot) => lot.farmerId === farmerId)
+        );
       },
 
       getLotById: (lotId: string) => {
@@ -65,7 +71,9 @@ export const useLotsStore = create(
 
       getLotsInStatus: (status: LotStatus) => {
         const { lots } = get();
-        return lots.filter((lot) => lot.statut === status);
+        return sortLotsByCreatedAtDesc(
+          lots.filter((lot) => lot.statut === status)
+        );
       },
 
       updateLotSyncStatus: (
@@ -73,15 +81,26 @@ export const useLotsStore = create(
         syncStatus: 'synced' | 'pending' | 'error'
       ) =>
         set((state) => ({
-          lots: state.lots.map((lot) =>
-            lot.lotId === lotId
-              ? { ...lot, syncStatus, updatedAt: Date.now() }
-              : lot
+          lots: sortLotsByCreatedAtDesc(
+            state.lots.map((lot) =>
+              lot.lotId === lotId
+                ? { ...lot, syncStatus, updatedAt: Date.now() }
+                : lot
+            )
           ),
         })),
     }),
     {
       name: 'lotsStore',
+      merge: (persistedState, currentState) => {
+        const persistedLots = (persistedState as Partial<LotsStore> | null)?.lots;
+
+        return {
+          ...currentState,
+          ...(persistedState as Partial<LotsStore>),
+          lots: sortLotsByCreatedAtDesc(persistedLots ?? currentState.lots),
+        };
+      },
     }
   )
 );

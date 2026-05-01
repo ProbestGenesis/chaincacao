@@ -9,6 +9,8 @@ import { useUser } from "@/context/useUser"
 import type { Lot } from "@/types/types"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useEUDRStore } from "@/store/eudr"
+import { getLotLineageIds } from "@/lib/lot-lineage"
+import { translateStatus } from "@/lib/status-helper"
 import { LotActionsPanel } from "@/components/lot/lot-actions-panel"
 import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
 import {
@@ -102,6 +104,8 @@ export function LotDetailModal({
   )
   const declaredSourceLots = Array.from(new Set([...(lot.sourceLotIds ?? []), ...sourceLots]))
   const isGroupLot = Boolean(lot.isGroup || declaredSourceLots.length > 0)
+  const lineageLotIds = getLotLineageIds(lot)
+  const hasConfirmedEUDR = eudrRecord?.status === "confirmed"
 
   const getSignatureLabel = (actorId: string) => {
     const matchedAction = timeline.find((action) => action.actorId === actorId)
@@ -193,10 +197,10 @@ export function LotDetailModal({
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
-                    {statusLabels[lot.statut]?.label || lot.statut}
+                    {translateStatus(lot.statut)}
                   </Badge>
                   <p className="text-sm text-muted-foreground">
-                    Synchronisation: {lot.syncStatus}
+                    Synchronisation: {translateStatus(lot.syncStatus)}
                   </p>
                   <Separator />
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -403,10 +407,35 @@ export function LotDetailModal({
 
           <TabsContent value="actions" className="mt-4 space-y-3">
             <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
-              {activeRole
-                ? `Le rôle ${activeRole} peut intervenir depuis cette zone si une action est disponible.`
-                : "Connectez-vous pour voir les actions disponibles sur ce lot."}
+              {activeRole ? (
+                <>
+                  <span className="font-medium text-foreground">{activeRole}.</span>{" "}
+                  {timeline.length > 0
+                    ? "L’historique est déjà alimenté, et seules les actions encore ouvertes restent visibles dans le panneau ci-dessous."
+                    : "Aucun évènement n’est encore historisé sur ce lot."}
+                </>
+              ) : (
+                "Connectez-vous pour voir les actions disponibles sur ce lot."
+              )}
             </div>
+            {isGroupLot ? (
+              <Card className="border-dashed">
+                <CardContent className="space-y-2 pt-6">
+                  <p className="text-sm font-medium">Traçabilité du groupement</p>
+                  <p className="text-sm text-muted-foreground">
+                    Les actions du lot maître sont répercutées sur ses lots sources pour garder
+                    un historique cohérent.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {declaredSourceLots.map((sourceLot) => (
+                      <Badge key={sourceLot} variant="secondary" className="rounded-full">
+                        {sourceLot}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             <LotActionsPanel lot={lot} />
           </TabsContent>
 
@@ -416,15 +445,23 @@ export function LotDetailModal({
                 <Card className="border-dashed">
                   <CardHeader>
                     <CardTitle className="text-base">Fiche de conformité disponible</CardTitle>
-                    <CardDescription>
-                      Cette fiche peut être consultée à tout moment depuis l’historique du lot.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl bg-muted/30 p-4">
-                        <p className="text-xs text-muted-foreground">Score ESG</p>
-                        <p className="mt-1 text-2xl font-bold">{eudrRecord.esgScore}</p>
+                  <CardDescription>
+                    Cette fiche peut être consultée à tout moment depuis l’historique du lot.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={hasConfirmedEUDR ? "default" : "secondary"}>
+                      {hasConfirmedEUDR ? "Confirmation validée" : "Confirmation en attente"}
+                    </Badge>
+                    {lineageLotIds.length > 1 ? (
+                      <Badge variant="outline">{lineageLotIds.length} lots couverts</Badge>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <p className="text-xs text-muted-foreground">Score ESG</p>
+                      <p className="mt-1 text-2xl font-bold">{eudrRecord.esgScore}</p>
                       </div>
                       <div className="rounded-2xl bg-muted/30 p-4">
                         <p className="text-xs text-muted-foreground">Risque pays</p>
@@ -446,19 +483,32 @@ export function LotDetailModal({
                       <p className="mt-2 text-muted-foreground">
                         Shipment: {eudrRecord.shipmentId}
                       </p>
+                      {lineageLotIds.length > 1 ? (
+                        <p className="mt-2 text-muted-foreground">
+                          Cette confirmation s’applique aussi aux lots sources du groupement.
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <Button asChild className="rounded-full">
-                        <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
-                          Ouvrir la fiche complète
+                        <Link href={`/exporter/conformite/${encodeURIComponent(lot.lotId)}`}>
+                          {hasConfirmedEUDR ? "Voir la confirmation" : "Ouvrir la fiche complète"}
                         </Link>
                       </Button>
-                      <Button asChild variant="outline" className="rounded-full">
-                        <Link href={`/exporter/historique?lotId=${encodeURIComponent(lot.lotId)}`}>
-                          Voir l’historique conformité
-                        </Link>
-                      </Button>
+                      {!hasConfirmedEUDR ? (
+                        <Button asChild variant="outline" className="rounded-full">
+                          <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
+                            Confirmer la conformité EUDR
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button asChild variant="outline" className="rounded-full">
+                          <Link href={`/exporter/historique?lotId=${encodeURIComponent(lot.lotId)}`}>
+                            Voir l’historique conformité
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -466,18 +516,23 @@ export function LotDetailModal({
             ) : (
               <Card className="border-dashed">
                 <CardHeader>
-                  <CardTitle className="text-base">Fiche de conformité non encore disponible</CardTitle>
+                  <CardTitle className="text-base">
+                    Fiche de conformité verrouillée
+                  </CardTitle>
                   <CardDescription>
-                    Dès qu’une vérification EUDR est confirmée, elle apparaîtra ici pour les auteurs et les autres rôles autorisés.
+                    La fiche EUDR reste cachée tant que la confirmation n&apos;est
+                    pas approuvée.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Le lot peut toujours être suivi dans l’historique général, mais la fiche exporteur n’est visible qu’après confirmation.
+                    Le lot peut toujours être suivi dans l’historique général,
+                    mais la fiche exporteur n’est visible qu’après
+                    confirmation.
                   </p>
-                  <Button asChild variant="outline" className="rounded-full">
+                  <Button asChild className="rounded-full">
                     <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
-                      Aller à la conformité
+                      Confirmer la conformité EUDR
                     </Link>
                   </Button>
                 </CardContent>

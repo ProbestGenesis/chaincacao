@@ -5,18 +5,17 @@ import { useUser } from "@/context/useUser"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, TrendingUp } from "lucide-react"
+import { Plus } from "lucide-react"
 import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
-import { fr } from "date-fns/locale"
+import { translateStatus } from "@/lib/status-helper"
 
 export function AgriculteurDashboard() {
   const { user } = useUser()
-  const { getLotsForFarmer, lots } = useLotsStore()
+  const { getLotsForFarmer } = useLotsStore()
 
   const farmerLots = user ? getLotsForFarmer(user.userId) : []
   const totalWeight = farmerLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
-  const recentLots = farmerLots.slice(-3).reverse()
+  const recentLots = farmerLots.slice(0, 3)
 
   const statusCounts = {
     draft: farmerLots.filter((l) => l.statut === "draft").length,
@@ -105,7 +104,7 @@ export function AgriculteurDashboard() {
                     </p>
                   </div>
                   <Badge variant={statusLabels[lot.statut]?.variant || "outline"}>
-                    {statusLabels[lot.statut]?.label || lot.statut}
+                    {translateStatus(lot.statut)}
                   </Badge>
                 </div>
               ))
@@ -129,7 +128,7 @@ export function AgriculteurDashboard() {
               <div key={status} className="text-center">
                 <div className="text-2xl font-bold">{count}</div>
                 <p className="text-xs text-muted-foreground">
-                  {statusLabels[status]?.label || status}
+                  {translateStatus(status)}
                 </p>
               </div>
             ))}

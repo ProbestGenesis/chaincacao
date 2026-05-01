@@ -21,7 +21,18 @@ import { usePathname } from "next/navigation";
 
 function AppSidebar() {
   const pathname = usePathname()
-  const isActive = (path: string) => pathname === path
+  const isActive = (path: string) =>
+    path === "/"
+      ? pathname === path
+      : pathname === path || pathname.startsWith(`${path}/`)
+
+  const navButtonClass = (active: boolean) =>
+    [
+      "flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg",
+      active && "bg-primary text-primary-foreground hover:bg-primary/90",
+    ]
+      .filter(Boolean)
+      .join(" ")
   return (
     <Sidebar>
       <SidebarHeader>
@@ -39,7 +50,7 @@ function AppSidebar() {
             <Link href="/" >
               {" "}
               <Button
-                className="flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg"
+                className={navButtonClass(isActive("/"))}
                 variant={isActive("/") ? "default" : "outline"}
               >
                 <LayoutDashboardIcon />{" "}
@@ -49,7 +60,7 @@ function AppSidebar() {
 
            <Link href="/inventory" >
              <Button
-              className="flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg"
+              className={navButtonClass(isActive("/inventory"))}
               variant={isActive("/inventory") ? "default" : "outline"}
             >
               <LayoutDashboardIcon />{" "}
@@ -59,7 +70,7 @@ function AppSidebar() {
 
            <Link href="/expedition" >
              <Button
-              className="flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg"
+              className={navButtonClass(isActive("/expedition"))}
               variant={isActive("/expedition") ? "default" : "outline"}
             >
               <LayoutDashboardIcon />{" "}
@@ -69,7 +80,7 @@ function AppSidebar() {
 
            <Link href="/shipments" >
                <Button
-              className="flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg"
+              className={navButtonClass(isActive("/shipments"))}
               variant={isActive("/shipments") ? "default" : "outline"}
             >
               <LayoutDashboardIcon />{" "}
@@ -79,7 +90,7 @@ function AppSidebar() {
 
            <Link href="/reports" >
              <Button
-              className="flex w-full space-x-4.5 rounded-md border-2 fl-text-sm/lg"
+              className={navButtonClass(isActive("/reports"))}
               variant={isActive("/reports") ? "default" : "outline"}
             >
               <LayoutDashboardIcon />{" "}

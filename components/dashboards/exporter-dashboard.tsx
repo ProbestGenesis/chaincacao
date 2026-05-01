@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ShieldAlert, Plus } from "lucide-react"
 import Link from "next/link"
+import { translateStatus } from "@/lib/status-helper"
 
 export function ExporterDashboard() {
   const { user } = useUser()
@@ -106,7 +107,7 @@ export function ExporterDashboard() {
                   <Badge 
                     variant={record.status === "confirmed" ? "default" : "secondary"}
                   >
-                    {record.status === "confirmed" ? "Confirmé" : "En attente"}
+                    {translateStatus(record.status)}
                   </Badge>
                 </div>
               ))}

@@ -34,6 +34,9 @@ export interface LotAction {
   description: string
   timestamp: number
   metadata?: Record<string, unknown>
+  chainStatus?: "off_chain" | "pending" | "recorded" | "error"
+  chainHash?: string
+  chainRecordedAt?: number
 }
 
 interface LotActionsStore {
@@ -41,10 +44,17 @@ interface LotActionsStore {
   addAction: (action: Omit<LotAction, "actionId" | "timestamp">) => void
   getActionsForLot: (lotId: string) => LotAction[]
   getLotTimeline: (lotId: string) => LotAction[]
+  hasLotAction: (lotId: string, action: LotAction["action"], phase: LotAction["phase"]) => boolean
+  registerActionOnChain: (actionId: string) => string | null
 }
 
 const generateActionId = () =>
   `ACTION-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+const generateChainHash = (action: LotAction) =>
+  `CHAIN-${action.lotId}-${action.action}-${action.phase}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`
 
 const mockLotActions: LotAction[] = [
   {
@@ -201,6 +211,7 @@ export const useLotActionsStore = create(
           ...actionData,
           actionId: generateActionId(),
           timestamp: Date.now(),
+          chainStatus: actionData.chainStatus ?? "off_chain",
         }
 
         set((state) => ({
@@ -218,6 +229,36 @@ export const useLotActionsStore = create(
         return actions
           .filter((a) => a.lotId === lotId)
           .sort((a, b) => a.timestamp - b.timestamp)
+      },
+
+      hasLotAction: (lotId, action, phase) => {
+        const { actions } = get()
+        return actions.some(
+          (entry) => entry.lotId === lotId && entry.action === action && entry.phase === phase
+        )
+      },
+
+      registerActionOnChain: (actionId) => {
+        const { actions } = get()
+        const target = actions.find((action) => action.actionId === actionId)
+        if (!target || target.chainStatus === "recorded") return target?.chainHash ?? null
+
+        const chainHash = generateChainHash(target)
+
+        set((state) => ({
+          actions: state.actions.map((action) =>
+            action.actionId === actionId
+              ? {
+                  ...action,
+                  chainStatus: "recorded",
+                  chainHash,
+                  chainRecordedAt: Date.now(),
+                }
+              : action
+          ),
+        }))
+
+        return chainHash
       },
     }),
     {

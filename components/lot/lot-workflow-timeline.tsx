@@ -2,10 +2,13 @@
 
 import type { Lot } from "@/types/types"
 import type { LotAction } from "@/store/lot-actions"
+import { useLotActionsStore } from "@/store/lot-actions"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { translateStatus } from "@/lib/status-helper"
 import {
   ArrowRight,
   CheckCircle2,
@@ -51,6 +54,7 @@ const phaseMeta: Record<
 }
 
 export function LotWorkflowTimeline({ lot, timeline, compact = false }: TimelineProps) {
+  const { registerActionOnChain } = useLotActionsStore()
   const actions = [...timeline].sort((a, b) => a.timestamp - b.timestamp)
   const latest = actions[actions.length - 1]
   const uniqueActors = Array.from(new Set(actions.map((action) => action.actor)))
@@ -71,7 +75,7 @@ export function LotWorkflowTimeline({ lot, timeline, compact = false }: Timeline
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-2xl font-semibold">{lot.statut}</p>
+            <p className="text-2xl font-semibold">{translateStatus(lot.statut)}</p>
             <p className="text-xs text-muted-foreground">
               {actions.length} validation{actions.length > 1 ? "s" : ""} enregistrée
               {actions.length > 1 ? "s" : ""}
@@ -101,7 +105,7 @@ export function LotWorkflowTimeline({ lot, timeline, compact = false }: Timeline
           </CardHeader>
           <CardContent className="space-y-2">
             <Badge variant={lot.syncStatus === "synced" ? "default" : "secondary"}>
-              {lot.syncStatus}
+              {translateStatus(lot.syncStatus)}
             </Badge>
             <p className="text-xs text-muted-foreground">État de réplication hors chaîne</p>
           </CardContent>
@@ -177,6 +181,28 @@ export function LotWorkflowTimeline({ lot, timeline, compact = false }: Timeline
                           </pre>
                         </div>
                       )}
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {action.chainStatus === "recorded" ? (
+                          <>
+                            <Badge variant="secondary">Chaîne :</Badge>
+                            {action.chainHash ? (
+                              <span className="text-xs font-mono text-muted-foreground">
+                                {action.chainHash}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => registerActionOnChain(action.actionId)}
+                          >
+                            Enregistrer dans la chaîne
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

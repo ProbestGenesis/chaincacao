@@ -139,7 +139,7 @@ export function EnhancedLotForm({
   return (
     <form onSubmit={submit} className={cn("space-y-6", className)}>
       {/* Geolocation Section */}
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="h-5 w-5 text-blue-600" />
