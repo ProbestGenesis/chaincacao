@@ -2,9 +2,7 @@
 
 import { useState, useRef, useMemo } from "react"
 import { useForm } from "react-hook-form"
-import { MapContainer, TileLayer, Marker, useMapEvents, Polygon } from "react-leaflet"
-import "leaflet/dist/leaflet.css"
-import L from "leaflet"
+import dynamic from "next/dynamic"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,33 +12,12 @@ import { useParcelles } from "@/hooks/useParcelles"
 import { useUser } from "@/context/useUser"
 import { Badge } from "@/components/ui/badge"
 
-// Fix leaflet icon issue
-const customIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+const ParcelleMap = dynamic(() => import("./parcelle-map"), {
+  ssr: false,
+  loading: () => <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">Chargement de la carte...</div>
 })
 
-function LocationMarker({ positions, setPositions }: { positions: L.LatLng[], setPositions: (p: L.LatLng[]) => void }) {
-  useMapEvents({
-    click(e) {
-      setPositions([...positions, e.latlng])
-    },
-  })
-
-  return (
-    <>
-      {positions.map((pos, idx) => (
-        <Marker key={idx} position={pos} icon={customIcon} />
-      ))}
-      {positions.length >= 3 && (
-        <Polygon positions={positions} pathOptions={{ color: 'green', fillColor: 'green', fillOpacity: 0.3 }} />
-      )}
-    </>
-  )
-}
+type Position = { lat: number, lng: number }
 
 type FormValues = {
   culture: string
@@ -49,7 +26,7 @@ type FormValues = {
 
 export function RegisterParcelleDialog() {
   const [open, setOpen] = useState(false)
-  const [positions, setPositions] = useState<L.LatLng[]>([])
+  const [positions, setPositions] = useState<Position[]>([])
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>()
   const { registerParcelle, isSubmitting } = useParcelles()
   const { user } = useUser()
@@ -144,13 +121,7 @@ export function RegisterParcelleDialog() {
             
             <div className="h-[350px] w-full rounded-md border overflow-hidden relative z-0">
               {open && (
-                <MapContainer center={defaultCenter} zoom={7} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  <LocationMarker positions={positions} setPositions={setPositions} />
-                </MapContainer>
+                <ParcelleMap positions={positions} setPositions={setPositions} defaultCenter={defaultCenter} />
               )}
             </div>
             
