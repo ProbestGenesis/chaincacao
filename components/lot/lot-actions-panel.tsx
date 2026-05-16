@@ -18,6 +18,7 @@ import { Lock, CheckCircle2, Truck, PackageOpen, ShieldCheck, FileCheck2, Clipbo
 import { TransferRoleDialog } from "./transfer-role-dialog"
 import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
 import { TransformationDialog } from "@/components/traceability/transformation-dialog"
+import { TransferLotDialog } from "@/components/traceability/transfer-lot-dialog"
 import { useState } from "react"
 import { getLotTraceabilityIds } from "@/lib/lot-lineage"
 import { useLotActionsStore } from "@/store/lot-actions"
@@ -90,7 +91,7 @@ const roleActions: Partial<Record<UserRole, ActionTemplate[]>> = {
       description: "Enregistrement du processus industriel et du rapport de transformation.",
     },
     {
-      label: "Transférer à l'exportateur",
+      label: "Enregistrer un transfert",
       icon: ArrowRightLeft,
       action: "transferred",
       phase: "transfert",
@@ -182,6 +183,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false)
   const [transformationDialogOpen, setTransformationDialogOpen] = useState(false)
+  const [transferLotDialogOpen, setTransferLotDialogOpen] = useState(false)
   const {
     createTransfer,
     createTransformation,
@@ -300,8 +302,33 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   const handleAction = async (template: ActionTemplate) => {
     try {
       switch (template.action) {
+        case "received":
+          await Promise.all(
+            traceabilityLotIds.map((lotHash, index) => {
+              const certPayload: CertificationPayload = {
+                certHash: `REC-${Date.now()}-${index}`,
+                refHash: lotHash,
+                verificateurId: user.userId,
+                statut: "RECU",
+                rapportHash: `RAP-REC-${Date.now()}-${index}`,
+                metadata: {
+                  action: "received",
+                  phase: "transfert",
+                  actorRole: activeRole,
+                  actorName: user.nomAffiche
+                }
+              }
+              return createCertification(certPayload)
+            })
+          )
+          break
+
         case "transferred":
-          setTransferDialogOpen(true)
+          if (normalizedRole === "Transformer") {
+            setTransferLotDialogOpen(true)
+          } else {
+            setTransferDialogOpen(true)
+          }
           break
         
         case "transformed":
@@ -415,6 +442,20 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
         onOpenChange={setTransformationDialogOpen}
         onSuccess={() => {
           setTransformationDialogOpen(false)
+        }}
+      />
+      <TransferLotDialog
+        lotHashes={traceabilityLotIds}
+        isSubmitting={isSubmitting}
+        open={transferLotDialogOpen}
+        onOpenChange={setTransferLotDialogOpen}
+        onSubmit={async (payload, onSuccess) => {
+          try {
+            await createTransfer(payload)
+            onSuccess()
+          } catch (e) {
+            console.error("Transfer error:", e)
+          }
         }}
       />
     </Card>

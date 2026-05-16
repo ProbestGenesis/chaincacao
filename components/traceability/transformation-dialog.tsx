@@ -72,12 +72,14 @@ export function TransformationDialog({ lotHashes, onSuccess, open: controlledOpe
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
-          <Factory className="size-4" />
-          Enregistrer Transformation
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
+            <Factory className="size-4" />
+            Enregistrer Transformation
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Transformation Industrielle</DialogTitle>

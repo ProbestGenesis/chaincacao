@@ -47,22 +47,22 @@ export const traceabilityService = {
 
   createTransfer: (payload: TransferPayload) => {
     const formData = new FormData()
-    formData.append("transfer_hash", payload.transferHash)
-    formData.append("lot_hashes", JSON.stringify(payload.lotHashes))
-    formData.append("expediteur_id", payload.expediteurId)
-    if (payload.expediteurName) formData.append("expediteur_name", payload.expediteurName)
-    formData.append("destinataire_id", payload.destinataireId)
-    if (payload.destinataireName) formData.append("destinataire_name", payload.destinataireName)
-    if (payload.transporteurId) formData.append("transporteur_id", payload.transporteurId)
+    formData.append("transferHash", payload.transferHash)
+    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
+    formData.append("expediteurId", payload.expediteurId)
+    if (payload.expediteurName) formData.append("expediteurName", payload.expediteurName)
+    formData.append("destinataireId", payload.destinataireId)
+    if (payload.destinataireName) formData.append("destinataireName", payload.destinataireName)
+    if (payload.transporteurId) formData.append("transporteurId", payload.transporteurId)
     formData.append("file", payload.file)
     return api.post<any>("/api/v1/traceability/transfers", formData, { isFormData: true })
   },
     
   createTransformation: (payload: TransformationPayload) => {
     const formData = new FormData()
-    formData.append("transformation_hash", payload.transformationHash)
-    formData.append("lot_hashes", JSON.stringify(payload.lotHashes))
-    formData.append("type_processus", payload.typeProcessus)
+    formData.append("transformationHash", payload.transformationHash)
+    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
+    formData.append("typeProcessus", payload.typeProcessus)
     formData.append("file", payload.file)
     return api.post<any>("/api/v1/traceability/transformations", formData, { isFormData: true })
   },

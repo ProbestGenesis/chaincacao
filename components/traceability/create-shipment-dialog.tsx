@@ -81,14 +81,16 @@ export function CreateShipmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
-            <Truck className="size-4" />
-            Créer une Expédition {lotHashes.length > 0 ? `(${lotHashes.length})` : ""}
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
+              <Truck className="size-4" />
+              Créer une Expédition {lotHashes.length > 0 ? `(${lotHashes.length})` : ""}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Créer une Expédition</DialogTitle>

@@ -33,6 +33,8 @@ interface TransferLotDialogProps {
   lotHashes: string[]
   isSubmitting: boolean
   onSubmit: (data: TransferPayload, onSuccess: () => void) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 type FormValues = {
@@ -43,8 +45,14 @@ export function TransferLotDialog({
   lotHashes,
   isSubmitting,
   onSubmit,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
 }: TransferLotDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled && setControlledOpen ? setControlledOpen : setInternalOpen
+
   const [file, setFile] = useState<File | null>(null)
   const { user } = useUser()
   const { data: recipients } = useRecipients()
@@ -73,12 +81,14 @@ export function TransferLotDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
-          <ArrowRightLeft className="size-4" />
-          Transférer {lotHashes.length > 0 ? `(${lotHashes.length})` : ""}
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="default" className="gap-1.5" disabled={lotHashes.length === 0}>
+            <ArrowRightLeft className="size-4" />
+            Transférer {lotHashes.length > 0 ? `(${lotHashes.length})` : ""}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Transférer la propriété</DialogTitle>
