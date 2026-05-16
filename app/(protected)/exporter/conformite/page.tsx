@@ -58,9 +58,9 @@ export default function ConformitePage() {
           "verified",
           "controle"
         )
-        ? `La conformité est déjà validée pour ${(initialSelectedLot as any).lotId || (initialSelectedLot as any).lotHash}`
+        ? `La conformité est déjà vérifiée pour ${(initialSelectedLot as any).lotId || (initialSelectedLot as any).lotHash}`
         : canConfirmEUDR
-          ? `Lot sélectionné depuis la fiche de conformité: vous pouvez confirmer l'EUDR.`
+          ? `Lot sélectionné depuis la fiche de conformité: vous pouvez vérifier l'EUDR.`
           : "La vérification de conformité est réservée au rôle Exporter."
       : null
   )
@@ -118,7 +118,7 @@ export default function ConformitePage() {
                 100
             )}%`
           : "0%",
-      note: "confirmations EUDR",
+      note: "vérifications EUDR",
     },
     {
       label: "Lots vérifiés",
@@ -144,122 +144,47 @@ export default function ConformitePage() {
             "verified",
             "controle"
           )
-          ? `La conformité est déjà validée pour ${(lot as any).lotId || (lot as any).lotHash || (lot as any).id}`
+          ? `La conformité est déjà vérifiée pour ${(lot as any).lotId || (lot as any).lotHash || (lot as any).id}`
           : canConfirmEUDR
-            ? `Lot trouvé: le bouton de confirmation est maintenant disponible.`
-            : "Lot trouvé: la vérification reste réservée au rôle Exporter."
+            ? `Lot trouvé: cliquez sur "Vérifier la conformité" pour voir les détails.`
+            : "La vérification de conformité est réservée au rôle Exporter."
         : "Lot non trouvé"
     )
   }
 
   const handleSelectLot = (lotId: string) => {
     setSearchValue(lotId)
+    const lot = findLotById(lotId)
     setStatusMessage(
-      hasLotAction(lotId, "verified", "controle")
-        ? `La conformité est déjà validée pour ${lotId}`
-        : canConfirmEUDR
-          ? `Lot sélectionné: vous pouvez maintenant confirmer la conformité EUDR.`
-          : "Lot sélectionné: la confirmation n'est pas disponible pour votre rôle."
+      lot
+        ? hasLotAction(
+            (lot as any).lotId || (lot as any).lotHash || (lot as any).id,
+            "verified",
+            "controle"
+          )
+          ? `La conformité est déjà vérifiée pour ${(lot as any).lotId || (lot as any).lotHash || (lot as any).id}`
+          : canConfirmEUDR
+            ? `Lot trouvé: cliquez sur "Vérifier la conformité" pour voir les détails.`
+            : "La vérification de conformité est réservée au rôle Exporter."
+        : "Lot non trouvé"
     )
   }
 
-  const handleConfirmEUDR = async () => {
-    const lot = selectedLot
-    if (!lot || !user) return
+  const [isSimulating, setIsSimulating] = useState(false)
 
-    if (!canConfirmEUDR) {
-      setStatusMessage(
-        "La confirmation de conformité est réservée au rôle Exporter."
-      )
-      return
-    }
+  const handleGoToVerification = () => {
+    if (!selectedLot) return
+    const lotId =
+      (selectedLot as any).lotId ||
+      (selectedLot as any).lotHash ||
+      (selectedLot as any).id
 
-    if (hasLotAction(lot.lotId, "verified", "controle")) {
-      setStatusMessage(`La conformité a déjà été validée pour ${lot.lotId}`)
-      return
-    }
-
-    const lotId = (lot as any).lotId || (lot as any).lotHash || (lot as any).id
-    const shipmentId = `EUDR-${lotId}-${Date.now()}`
-    const lineageLotIds = getLotLineageIds(lot as any, findLotById)
-    const traceabilityLotIds = getLotTraceabilityIds(lot as any, findLotById)
-
-    // Appel API blockchain — certification EUDR
-    try {
-      await Promise.all(
-        traceabilityLotIds.map((lotHash, index) =>
-          createCertification({
-            certHash: `${shipmentId}-${index}`,
-            refHash: lotHash,
-            verificateurId: user.blockchainId || user.userId,
-            statut: "CONFORME",
-            rapportHash: `RAP-${shipmentId}-${index}`,
-            metadata: {
-              confirmedLotIds: lineageLotIds,
-              groupLotId: lot.isGroup
-                ? (lot as any).lotHash || lot.lotId
-                : undefined,
-              eudrStatus: "conformante",
-              esgScore: "98",
-              countryRisk: "low",
-              diligenceDate: new Date().toISOString(),
-            },
-          })
-        )
-      )
-    } catch (e) {
-      console.warn(
-        "[EUDR] Blockchain certification failed, recording locally:",
-        e
-      )
-    }
-
-    // Mise à jour store local
-    confirmEUDR({
-      shipmentId,
-      lotIds: lineageLotIds,
-      confirmedBy: user.userId,
-      status: "confirmed",
-      eudrStatus: "conformante",
-      diligenceDate: new Date().toISOString(),
-      countryRisk: "low",
-      esgScore: "98",
-    })
-
-    lineageLotIds.forEach((lotId) => {
-      addAction({
-        lotId,
-        actor: "Exporter",
-        actorName: user.nomAffiche,
-        actorId: user.userId,
-        action: "verified",
-        phase: "controle",
-        status: "exported",
-        description:
-          lotId === lot.lotId
-            ? "Vérification EUDR confirmée et enregistrée sur la blockchain."
-            : `Confirmation EUDR héritée du groupement ${lot.lotId}.`,
-        metadata: {
-          shipmentId,
-          lotId,
-          groupLotId: lot.isGroup
-            ? (lot as any).lotId || (lot as any).lotHash || (lot as any).id
-            : undefined,
-          confirmedLotIds: lineageLotIds,
-          eudrStatus: "conformante",
-          documents: ["rapport-eudr.pdf", "liste-pieces-export.pdf"],
-        },
-      })
-    })
-
-    lineageLotIds.forEach((lotId) => {
-      updateLotStatus(lotId, "exported")
-      updateLotSyncStatus(lotId, "synced")
-    })
-
-    setStatusMessage(
-      `✅ Conformité EUDR confirmée pour ${lotId} et enregistrée sur la blockchain.`
-    )
+    // Simulation d'un petit chargement
+    setIsSimulating(true)
+    setTimeout(() => {
+      setIsSimulating(false)
+      router.push(`/exporter/conformite/${encodeURIComponent(lotId)}`)
+    }, 800)
   }
 
   return (
@@ -274,7 +199,7 @@ export default function ConformitePage() {
           </h1>
           <p className="max-w-3xl text-muted-foreground">
             Scannez un QR ou entrez un identifiant pour retrouver un lot, puis
-            sélectionnez-le pour activer le bouton de confirmation EUDR.
+            sélectionnez-le pour activer le bouton de vérification EUDR.
           </p>
         </div>
 
@@ -354,7 +279,7 @@ export default function ConformitePage() {
                               • {lot.espece}
                             </p>
                             <p className="mt-2 text-xs font-medium text-primary">
-                              Sélectionner pour confirmer
+                              Sélectionner pour vérifier
                             </p>
                           </Button>
                         )
@@ -426,9 +351,9 @@ export default function ConformitePage() {
                 </div>
               ) : null}
 
-              {/* Étape 1 : Confirmer la conformité EUDR */}
+              {/* Étape 1 : Vérifier la conformité EUDR */}
               <Button
-                onClick={handleConfirmEUDR}
+                onClick={handleGoToVerification}
                 disabled={
                   !selectedLot ||
                   (selectedLot &&
@@ -439,12 +364,12 @@ export default function ConformitePage() {
                 className="h-14 w-full rounded-2xl bg-amber-400 text-[#2f1713] hover:bg-amber-300"
               >
                 <BadgeCheck className="h-4 w-4" />
-                {isSubmitting
-                  ? "Enregistrement..."
-                  : "Confirmer la conformité EUDR"}
+                {isSubmitting || isSimulating
+                  ? "Chargement..."
+                  : "Vérifier la conformité EUDR"}
               </Button>
 
-              {/* Étape 2 : Créer une expédition (disponible après confirmation EUDR) */}
+              {/* Étape 2 : Créer une expédition (disponible après vérification EUDR) */}
               {selectedLot &&
                 hasLotAction(selectedLot.lotId, "verified", "controle") &&
                 canConfirmEUDR && (
