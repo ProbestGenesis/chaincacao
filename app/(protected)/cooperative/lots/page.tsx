@@ -94,21 +94,22 @@ export default function GestionLotsPage() {
       const userCoopId = coopBlockchainId.toString()
 
       // Correspondance par ID (flexible pour gérer les préfixes comme COOPERATIVE-)
-      const matchesCoopId = userCoopId && (
+      const matchesCoopId = !userCoopId || (
         lotCoopId === userCoopId || 
         lotCoopId.includes(userCoopId) || 
         userCoopId.includes(lotCoopId)
       )
 
       // Correspondance par nom (store local)
-      const coopName = lot.coopName || lot.coop_name
-      const matchesCoopName = coopName && (
+      const coopName = (lot.coopName || lot.coop_name || "").toString()
+      const matchesCoopName = !user?.nomAffiche || (
         coopName === user?.nomAffiche || 
-        coopName === user?.orgName
+        coopName === user?.orgName ||
+        coopName.includes(user?.nomAffiche || "---")
       )
 
-      // Si aucun ID coop défini, afficher tout en mode debug/dev
-      if (!userCoopId) return isNotGroup && isNotGrouped
+      // DEBUG: Décommentez pour voir pourquoi un lot est filtré dans la console
+      console.log(`[Filter Debug] Lot ${lotId}: matchesId=${matchesCoopId}, isNotGroup=${isNotGroup}, isNotGrouped=${isNotGrouped}, status=${lot.statut}`)
 
       return (matchesCoopId || matchesCoopName) && isNotGroup && isNotGrouped
     }),
