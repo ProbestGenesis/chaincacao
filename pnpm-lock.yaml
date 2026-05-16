@@ -26,6 +26,9 @@ importers:
       fluid-tailwindcss:
         specifier: ^1.0.9
         version: 1.0.9(tailwindcss@4.2.4)
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       lucide-react:
         specifier: ^1.14.0
         version: 1.14.0(react@19.2.5)
