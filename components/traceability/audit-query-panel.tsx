@@ -146,13 +146,24 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Lot ID</TableHead>
-                  <TableHead>Espèce</TableHead>
-                  <TableHead>Poids (kg)</TableHead>
-                  <TableHead>Producteur</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
+                {activeSearch.type === "certifications" ? (
+                  <TableRow>
+                    <TableHead>ID Certif</TableHead>
+                    <TableHead>Vérificateur</TableHead>
+                    <TableHead>Score ESG</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Rapport</TableHead>
+                  </TableRow>
+                ) : (
+                  <TableRow>
+                    <TableHead>Lot ID</TableHead>
+                    <TableHead>Espèce</TableHead>
+                    <TableHead>Poids (kg)</TableHead>
+                    <TableHead>Producteur</TableHead>
+                    <TableHead>Statut</TableHead>
+                  </TableRow>
+                )}
               </TableHeader>
               <TableBody>
                 {isLoading ? (
@@ -162,25 +173,81 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
                     </TableCell>
                   </TableRow>
                 ) : results && results.length > 0 ? (
-                  results.map((lot: any) => (
-                    <TableRow key={lot.lotHash}>
-                      <TableCell className="font-mono text-xs font-medium">
-                        {lot.lotHash}
-                      </TableCell>
-                      <TableCell>{lot.espece}</TableCell>
-                      <TableCell>{lot.poidsKg}</TableCell>
-                      <TableCell>{lot.farmerId}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {lot.statut}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  results.map((item: any, idx: number) => {
+                    if (activeSearch.type === "certifications") {
+                      return (
+                        <TableRow key={item.certHash || item.txId || idx}>
+                          <TableCell className="font-mono text-xs font-medium">
+                            {item.certHash || item.id || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs">{item.verificateurId || "—"}</TableCell>
+                          <TableCell>
+                            {item.metadata?.esgScore ? (
+                              <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                {item.metadata.esgScore}/100
+                              </Badge>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {item.timestamp || item.certification_date || item.date 
+                              ? new Date(item.timestamp || item.certification_date || item.date).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={item.statut === "CONFORME" ? "default" : "outline"} className="capitalize">
+                              {item.statut || "—"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0"
+                              onClick={async () => {
+                                try {
+                                  const lotHash = item.refHash || item.lotHash
+                                  if (!lotHash) return
+                                  const blob = await traceabilityService.getEUDRReportPdf(lotHash)
+                                  const url = window.URL.createObjectURL(blob)
+                                  const a = document.createElement("a")
+                                  a.href = url
+                                  a.download = `EUDR_Report_${lotHash}.pdf`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  window.URL.revokeObjectURL(url)
+                                  document.body.removeChild(a)
+                                } catch (e) {
+                                  console.error("EUDR Download failed", e)
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    }
+
+                    return (
+                      <TableRow key={item.lotHash || item.id || idx}>
+                        <TableCell className="font-mono text-xs font-medium">
+                          {item.lotHash || item.lotId || item.id}
+                        </TableCell>
+                        <TableCell>{item.espece}</TableCell>
+                        <TableCell>{item.poidsKg}</TableCell>
+                        <TableCell>{item.farmerId}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {item.statut}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Aucun lot ne correspond à vos critères de recherche.
+                      Aucun résultat ne correspond à vos critères de recherche.
                     </TableCell>
                   </TableRow>
                 )}
@@ -213,6 +280,7 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
                       document.body.appendChild(a)
                       a.click()
                       window.URL.revokeObjectURL(url)
+                      document.body.removeChild(a)
                     }}
                   >
                     <Download className="size-4" />

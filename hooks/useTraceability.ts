@@ -84,7 +84,7 @@ export function useLotHistories(assetHashes: string[]) {
         .flatMap((result) => result.data ?? [])
         .sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         ),
       isLoading: results.some((result) => result.isLoading),
       isError: results.some((result) => result.isError),
@@ -112,7 +112,15 @@ export function useLotVerification(lotHash: string) {
 export function useAuditQueryStatus(status: string) {
   return useQuery({
     queryKey: ["audit", "status", status],
-    queryFn: () => traceabilityService.queryByStatus(status),
+    queryFn: async () => {
+      const response = await traceabilityService.queryByStatus(status)
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCollecte || a.timestamp || 0).getTime()
+        const dateB = new Date(b.dateCollecte || b.timestamp || 0).getTime()
+        return dateB - dateA
+      })
+    },
     enabled: !!status,
   })
 }
@@ -120,7 +128,15 @@ export function useAuditQueryStatus(status: string) {
 export function useAuditQueryFarmer(farmerId: string) {
   return useQuery({
     queryKey: ["audit", "farmer", farmerId],
-    queryFn: () => traceabilityService.queryByFarmer(farmerId),
+    queryFn: async () => {
+      const response = await traceabilityService.queryByFarmer(farmerId)
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCollecte || a.timestamp || 0).getTime()
+        const dateB = new Date(b.dateCollecte || b.timestamp || 0).getTime()
+        return dateB - dateA
+      })
+    },
     enabled: !!farmerId,
   })
 }
@@ -128,7 +144,15 @@ export function useAuditQueryFarmer(farmerId: string) {
 export function useAuditQueryCertifications(refHash: string) {
   return useQuery({
     queryKey: ["audit", "certifications", refHash],
-    queryFn: () => traceabilityService.queryCertifications(refHash),
+    queryFn: async () => {
+      const response = await traceabilityService.queryCertifications(refHash)
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.timestamp || a.certification_date || a.date || 0).getTime()
+        const dateB = new Date(b.timestamp || b.certification_date || b.date || 0).getTime()
+        return dateB - dateA
+      })
+    },
     enabled: !!refHash,
   })
 }
@@ -136,7 +160,15 @@ export function useAuditQueryCertifications(refHash: string) {
 export function useAuditQueryOwner(ownerId: string) {
   return useQuery({
     queryKey: ["audit", "owner", ownerId],
-    queryFn: () => traceabilityService.queryByOwner(ownerId),
+    queryFn: async () => {
+      const response = await traceabilityService.queryByOwner(ownerId)
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCollecte || a.timestamp || 0).getTime()
+        const dateB = new Date(b.dateCollecte || b.timestamp || 0).getTime()
+        return dateB - dateA
+      })
+    },
     enabled: !!ownerId,
   })
 }

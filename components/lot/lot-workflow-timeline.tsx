@@ -12,6 +12,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock3,
+  Download,
   FileCheck2,
   MapPin,
   PackageOpen,
@@ -19,6 +20,8 @@ import {
   Truck,
   Warehouse,
 } from "lucide-react"
+import { traceabilityService } from "@/lib/services/traceability.service"
+import { useState } from "react"
 
 type TimelineProps = {
   lot: Lot
@@ -254,18 +257,47 @@ export function LotWorkflowTimeline({
                           </div>
                         )}
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        {action.chainStatus === "recorded" ? (
-                          <>
-                            <Badge variant="secondary">Chaîne :</Badge>
-                            {action.chainHash ? (
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {action.chainHash}
-                              </span>
-                            ) : null}
-                          </>
-                        ) : (
-                          <Badge variant="outline">Non enregistré</Badge>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {action.chainStatus === "recorded" ? (
+                            <>
+                              <Badge variant="secondary">Chaîne :</Badge>
+                              {action.chainHash ? (
+                                <span className="font-mono text-xs text-muted-foreground">
+                                  {action.chainHash}
+                                </span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <Badge variant="outline">Non enregistré</Badge>
+                          )}
+                        </div>
+                        
+                        {(action.phase === "controle" || !!action.metadata?.eudrStatus) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1.5 text-[10px] rounded-lg"
+                            onClick={async () => {
+                              try {
+                                const lotHash = (lot as any).lotHash || lot.lotId
+                                const blob = await traceabilityService.getEUDRReportPdf(lotHash)
+                                const url = window.URL.createObjectURL(blob)
+                                const a = document.createElement("a")
+                                a.href = url
+                                a.download = `EUDR_Report_${lotHash}.pdf`
+                                document.body.appendChild(a)
+                                a.click()
+                                window.URL.revokeObjectURL(url)
+                                document.body.removeChild(a)
+                              } catch (e) {
+                                console.error("Download failed", e)
+                              }
+                            }}
+                          >
+                            <Download className="size-3" />
+                            Certificat EUDR
+                          </Button>
                         )}
                       </div>
                     </div>

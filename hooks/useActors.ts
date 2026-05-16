@@ -30,17 +30,26 @@ export function useActors() {
   // Queries
   const usersQuery = useQuery({
     queryKey: [queryKeys.actors],
-    queryFn: () => fetchUsers(),
+    queryFn: async () => {
+      const data = await fetchUsers()
+      return data.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    },
   })
 
   const pendingUsersQuery = useQuery({
     queryKey: [queryKeys.pendingActors, normalizedRole],
-    queryFn: () => {
+    queryFn: async () => {
+      let data: ApiUser[] = []
       if (normalizedRole === "CoopManager") {
-        return fetchPendingProducers()
+        data = await fetchPendingProducers()
+      } else {
+        data = await fetchPendingRegistrations()
       }
-      // Par défaut (Ministère)
-      return fetchPendingRegistrations()
+      return data.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
     },
     // Désactiver si le rôle n'est ni Admin ni Coop ni Ministry (évite les erreurs 403 inutiles)
     enabled: ["Admin", "CoopManager", "MinistryAnalyst"].includes(normalizedRole),

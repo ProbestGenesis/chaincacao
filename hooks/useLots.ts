@@ -62,10 +62,12 @@ export function useFarmerLots(farmerId: string) {
     queryKey: [queryKeys.lots, "farmer", farmerId],
     queryFn: async () => {
       const response = await traceabilityService.queryByFarmer(farmerId)
-      // Si la réponse est directement un tableau (cas du backend actuel)
-      if (Array.isArray(response)) return response
-      // Sinon on cherche la propriété .data (compatibilité)
-      return (response as any).data || []
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCollecte || a.createdAt || 0).getTime()
+        const dateB = new Date(b.dateCollecte || b.createdAt || 0).getTime()
+        return dateB - dateA
+      })
     },
     enabled: !!farmerId,
   })
@@ -76,8 +78,12 @@ export function useOwnedLots(ownerId: string) {
     queryKey: [queryKeys.lots, "owned", ownerId],
     queryFn: async () => {
       const response = await traceabilityService.queryByOwner(ownerId)
-      if (Array.isArray(response)) return response
-      return (response as any).data || []
+      const items = Array.isArray(response) ? response : (response as any).data || []
+      return items.sort((a: any, b: any) => {
+        const dateA = new Date(a.dateCollecte || a.createdAt || 0).getTime()
+        const dateB = new Date(b.dateCollecte || b.createdAt || 0).getTime()
+        return dateB - dateA
+      })
     },
     enabled: !!ownerId,
   })

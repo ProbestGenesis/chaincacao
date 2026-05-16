@@ -15,7 +15,14 @@ export function useParcelles() {
     refetch: loadParcelles,
   } = useQuery({
     queryKey: [queryKeys.parcelles],
-    queryFn: () => parcellesService.getFarmerParcelles(),
+    queryFn: async () => {
+      const data = await parcellesService.getFarmerParcelles()
+      return data.sort((a, b) => {
+        const dateA = new Date(a.dateEnregistrement || 0).getTime()
+        const dateB = new Date(b.dateEnregistrement || 0).getTime()
+        return dateB - dateA
+      })
+    },
   })
 
   const registerParcelleMutation = useMutation({
