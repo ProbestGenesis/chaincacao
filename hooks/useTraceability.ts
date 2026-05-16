@@ -75,8 +75,8 @@ export function useTraceability() {
     mutationFn: (payload: TransferPayload) => traceabilityService.createTransfer(payload),
     onSuccess: (response, variables) => {
       toast.success("Transfert enregistré avec succès sur la blockchain")
-      if (variables.lot_hashes.length > 0) {
-        queryClient.invalidateQueries({ queryKey: [queryKeys.history(variables.lot_hashes[0])] })
+      if (variables.lotHashes.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [queryKeys.history(variables.lotHashes[0])] })
       }
     },
     onError: (err: any) => {
@@ -88,8 +88,8 @@ export function useTraceability() {
     mutationFn: (payload: TransformationPayload) => traceabilityService.createTransformation(payload),
     onSuccess: (response, variables) => {
       toast.success("Transformation enregistrée avec succès sur la blockchain")
-      if (variables.lot_hashes.length > 0) {
-        queryClient.invalidateQueries({ queryKey: [queryKeys.history(variables.lot_hashes[0])] })
+      if (variables.lotHashes.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [queryKeys.history(variables.lotHashes[0])] })
       }
     },
     onError: (err: any) => {

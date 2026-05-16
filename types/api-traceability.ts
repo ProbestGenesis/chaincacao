@@ -24,18 +24,19 @@ export interface EUDRReport {
 }
 
 export interface TransferPayload {
-  transfer_hash: string
-  lot_hashes: string[]
-  expediteur_id: string
-  destinataire_id: string
-  preuve_hash: string
+  transferHash: string
+  lotHashes: string[]      // Sera JSON.stringify() avant envoi
+  expediteurId: string
+  destinataireId: string
+  transporteurId?: string
+  file: File               // Document de preuve obligatoire
 }
 
 export interface TransformationPayload {
-  transformation_hash: string
-  lot_hashes: string[]
-  type_processus: string
-  preuve_hash: string
+  transformationHash: string
+  lotHashes: string[]
+  typeProcessus: string
+  file: File
 }
 
 export interface ShipmentPayload {
@@ -43,9 +44,9 @@ export interface ShipmentPayload {
   lotHashes: string[]
   exportateurId: string
   destination: string
-  documentsHash: string
   dateDepartPrevue: string
   dateArriveePrevue: string
+  file: File
 }
 
 export interface VerificationResponse {
@@ -78,7 +79,7 @@ export interface AuditQueryLot {
   mediaHash?: string
 }
 
-export interface AuditQueryResponse {
+export type AuditQueryResponse = AuditQueryLot[] | {
   success: boolean
   data: AuditQueryLot[]
 }

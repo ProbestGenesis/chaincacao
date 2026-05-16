@@ -47,12 +47,21 @@ export const lotService = {
       )
       
       const results = await Promise.all(promises)
-      const allLots = results.flatMap((res) => res.data || [])
+      const allLots = results.flatMap((res) => {
+        // L'API peut retourner { success, data: [...] } ou directement un tableau
+        const items = Array.isArray(res) ? res : (res.data || [])
+        // Normaliser chaque lot pour garantir la présence de lotId
+        return items.map((lot: any) => ({
+          ...lot,
+          lotId: lot.lotId || lot.lotHash || lot.id,
+          id: lot.lotId || lot.lotHash || lot.id,
+        }))
+      })
       
-      // Deduplicate by lotId or id just in case
+      // Deduplicate by lotId
       const uniqueLotsMap = new Map()
       for (const lot of allLots) {
-        const id = lot.lotHash || lot.lotId || lot.id
+        const id = lot.lotId || lot.lotHash || lot.id
         if (id && !uniqueLotsMap.has(id)) {
           uniqueLotsMap.set(id, lot)
         }

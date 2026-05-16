@@ -18,7 +18,7 @@ export default function CarrierOrdresPage() {
   }, [loadLots])
 
   // Simulation d'ordres de transport assignés
-  const orders = serverLots.filter(l => ["pending", "transferred", "en_transit"].includes(l.statut))
+  const orders = serverLots.filter((l: any) => ["pending", "transferred", "en_transit", "EN_TRANSIT", "COLLECTE"].includes(l.statut))
 
   return (
     <div className="space-y-6 p-6">
@@ -41,11 +41,11 @@ export default function CarrierOrdresPage() {
           </div>
         ) : orders.length > 0 ? (
           orders.map((lot) => (
-            <Card key={lot.lotId || lot.id} className="overflow-hidden">
+            <Card key={lot.lotId || lot.lotHash || lot.id} className="overflow-hidden">
               <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono">{lot.lotId || lot.id}</Badge>
+                    <Badge variant="outline" className="font-mono">{lot.lotId || lot.lotHash || lot.id}</Badge>
                     <Badge>{translateStatus(lot.statut)}</Badge>
                   </div>
                   <p className="text-sm font-medium text-muted-foreground">Assigné le {new Date().toLocaleDateString()}</p>
@@ -60,8 +60,8 @@ export default function CarrierOrdresPage() {
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">Enlèvement</p>
-                        <p className="font-semibold">{lot.region}</p>
-                        <p className="text-xs text-muted-foreground">{lot.farmerId || "Producteur local"}</p>
+                        <p className="font-semibold">{lot.region || lot.espece || "—"}</p>
+                        <p className="text-xs text-muted-foreground">{lot.farmerId || lot.ownerId || "Producteur local"}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -70,7 +70,7 @@ export default function CarrierOrdresPage() {
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">Livraison</p>
-                        <p className="font-semibold">{lot.coopName || "Entrepôt Central"}</p>
+                        <p className="font-semibold">{lot.coopName || lot.coopId || lot.coop_name || "Entrepôt Central"}</p>
                         <p className="text-xs text-muted-foreground">Centre de collecte</p>
                       </div>
                     </div>
@@ -79,11 +79,11 @@ export default function CarrierOrdresPage() {
                   <div className="bg-muted/20 p-4 rounded-2xl space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Marchandise:</span>
-                      <span className="font-medium">{lot.espece}</span>
+                      <span className="font-medium">{lot.espece || "—"}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Poids total:</span>
-                      <span className="font-medium">{lot.poidsKg || lot.poids_kg} kg</span>
+                      <span className="font-medium">{lot.poidsKg || lot.poids_kg || "0"} kg</span>
                     </div>
                     <div className="flex justify-between text-sm border-t pt-2 mt-2">
                       <span className="text-muted-foreground">Priorité:</span>

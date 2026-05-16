@@ -19,8 +19,8 @@ export default function HistoriqueAgriculteurPage() {
     loadLots()
   }, [loadLots])
 
-  const lots = user ? serverLots.filter(l => l.farmer_id === user.userId || l.farmerId === user.userId) : []
-  const historicalLots = lots.filter(l => ["exported", "transformed", "verified"].includes(l.statut))
+  const lots = user ? serverLots.filter((l: any) => l.farmer_id === user.userId || l.farmerId === user.userId || l.ownerId === user.blockchainId) : []
+  const historicalLots = lots.filter((l: any) => ["exported", "transformed", "verified", "TRANSFORME", "EXPORTE"].includes(l.statut))
 
   return (
     <div className="space-y-6 p-6">
@@ -49,13 +49,13 @@ export default function HistoriqueAgriculteurPage() {
             <Skeleton className="h-24 w-full rounded-2xl" />
           </div>
         ) : historicalLots.length > 0 ? (
-          historicalLots.map((lot) => (
-            <Card key={lot.lotId || lot.id} className="overflow-hidden">
+          historicalLots.map((lot: any) => (
+            <Card key={lot.lotId || lot.lotHash || lot.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row">
                   <div className="bg-muted/30 p-6 md:w-64 border-b md:border-b-0 md:border-r">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">ID Lot</p>
-                    <p className="font-mono text-sm mb-4">{lot.lotId || lot.id}</p>
+                    <p className="font-mono text-sm mb-4">{lot.lotId || lot.lotHash || lot.id}</p>
                     <Badge className="w-full justify-center">
                       {translateStatus(lot.statut)}
                     </Badge>
@@ -63,24 +63,28 @@ export default function HistoriqueAgriculteurPage() {
                   <div className="p-6 flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Espèce</p>
-                      <p className="font-medium">{lot.espece}</p>
+                      <p className="font-medium">{lot.espece || "—"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Poids</p>
-                      <p className="font-medium">{lot.poidsKg || lot.poids_kg} kg</p>
+                      <p className="font-medium">{lot.poidsKg || lot.poids_kg || "0"} kg</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Région</p>
-                      <p className="font-medium">{lot.region}</p>
+                      <p className="font-medium">{lot.region || lot.espece || "—"}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Date</p>
-                      <p className="font-medium">{new Date(lot.updatedAt || lot.dateCreation).toLocaleDateString()}</p>
+                      <p className="font-medium">
+                        {lot.updatedAt || lot.dateCreation || lot.dateCollecte
+                          ? new Date(lot.updatedAt || lot.dateCreation || lot.dateCollecte).toLocaleDateString("fr-FR")
+                          : "—"}
+                      </p>
                     </div>
                   </div>
                   <div className="p-6 flex items-center justify-end bg-muted/10">
                     <Button asChild variant="ghost" size="sm">
-                      <Link href={`/agriculteur/lots/${lot.lotId || lot.id}`}>
+                      <Link href={`/agriculteur/lots/${lot.lotId || lot.lotHash || lot.id}`}>
                         Voir le parcours complet
                       </Link>
                     </Button>

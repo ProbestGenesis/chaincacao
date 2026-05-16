@@ -18,8 +18,9 @@ export default function VerifierLotPage() {
     loadLots()
   }, [loadLots])
 
-  const lotsToVerify = serverLots.filter(l => 
+  const lotsToVerify = serverLots.filter((l: any) => 
     l.lotId?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    l.lotHash?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     l.id?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 10)
 
@@ -52,18 +53,18 @@ export default function VerifierLotPage() {
         ) : lotsToVerify.length > 0 ? (
           <div className="grid gap-4">
             {lotsToVerify.map((lot) => (
-              <Card key={lot.lotId || lot.id} className="overflow-hidden hover:border-primary/50 transition-colors">
+              <Card key={(lot as any).lotId || (lot as any).lotHash || (lot as any).id} className="overflow-hidden hover:border-primary/50 transition-colors">
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row justify-between gap-6">
                     <div className="space-y-4 flex-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono">{lot.lotId || lot.id}</Badge>
-                        <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
+                        <Badge variant="outline" className="font-mono">{(lot as any).lotId || (lot as any).lotHash || (lot as any).id}</Badge>
+                        <Badge variant="secondary">{translateStatus((lot as any).statut)}</Badge>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground text-xs font-bold uppercase">Origine</p>
-                          <p>{lot.region}</p>
+                          <p>{(lot as any).region || (lot as any).espece || "—"}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs font-bold uppercase">Producteur</p>
@@ -71,7 +72,7 @@ export default function VerifierLotPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs font-bold uppercase">Poids</p>
-                          <p>{lot.poidsKg || lot.poids_kg} kg</p>
+                          <p>{(lot as any).poidsKg || (lot as any).poids_kg || "0"} kg</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs font-bold uppercase">Score ESG</p>

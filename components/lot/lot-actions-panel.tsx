@@ -287,10 +287,10 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
         
         case "transformed":
           const transformPayload: TransformationPayload = {
-            transformation_hash: `TSF-${Date.now()}`,
-            lot_hashes: [lot.lotId],
-            type_processus: "Fermentation & Séchage",
-            preuve_hash: `PRV-${Date.now()}`
+            transformationHash: `TSF-${Date.now()}`,
+            lotHashes: [lot.lotId],
+            typeProcessus: "Fermentation & Séchage",
+            file: new File([""], "proof.pdf", { type: "application/pdf" })
           }
           await createTransformation(transformPayload)
           break
@@ -301,9 +301,9 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
             lotHashes: [lot.lotId],
             exportateurId: user.userId,
             destination: "Europe",
-            documentsHash: `DOC-${Date.now()}`,
             dateDepartPrevue: new Date().toISOString(),
-            dateArriveePrevue: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+            dateArriveePrevue: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+            file: new File([""], "bill_of_lading.pdf", { type: "application/pdf" })
           }
           await createShipment(shipmentPayload)
           break

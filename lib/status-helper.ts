@@ -2,8 +2,8 @@ export const translateStatus = (status: string | undefined): string => {
   if (!status) return "Inconnu";
   
   const statusMap: Record<string, string> = {
-    // Lots & General (Backend terminology)
-    collecte: "Initialisé",
+    // Lots & General (Blockchain terminology)
+    collecte: "Récolté",
     en_transit: "En transit",
     transforme: "Transformé",
     exporte: "Exporté",

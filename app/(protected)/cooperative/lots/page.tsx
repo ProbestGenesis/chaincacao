@@ -12,6 +12,7 @@ import { useLots } from "@/hooks/useLots"
 import { useEffect } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
+import { TransferLotDialog } from "@/components/traceability/transfer-lot-dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,6 +29,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import type { Lot } from "@/types/types"
 import { translateStatus } from "@/lib/status-helper"
 import { getSourceLotIds } from "@/lib/lot-lineage"
+import { useTraceability } from "@/hooks/useTraceability"
 
 const averageCoordinates = (lots: Lot[]) => {
   if (lots.length === 0) {
@@ -51,9 +53,10 @@ const averageCoordinates = (lots: Lot[]) => {
 export default function GestionLotsPage() {
   const { user } = useUser()
   const { addLot, getLotById } = useLotsStore()
-  const { serverLots, loadLots, isLoading } = useLots()
+  const { serverLots, loadLots, isLoading, regroupLots, isRegrouping } = useLots()
   const { addAction } = useLotActionsStore()
   const { createGroup, getGroupsByManager, setGroupLotId } = useCooperativeStore()
+  const { createTransfer, isSubmitting: isTransferring } = useTraceability()
   const allGroups = useCooperativeStore((state) => state.groups)
   const [selectedLots, setSelectedLots] = useState<string[]>([])
   const [newGroupName, setNewGroupName] = useState("")
@@ -61,16 +64,18 @@ export default function GestionLotsPage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [isGrouping, setIsGrouping] = useState(false)
+
+  // ID blockchain de la coopérative pour filtrer ses lots
+  const coopBlockchainId = user?.blockchainId || user?.userId || ""
 
   useEffect(() => {
     loadLots()
   }, [loadLots])
 
-  // On fusionne les lots du store (pour les créations récentes) et du serveur
+  // Les lots serveur sont déjà normalisés (lotId = lotHash) par getLots()
   const allLots = useMemo(() => {
-    const combined = [...serverLots]
-    // Optionnel: ajouter ceux du store qui n'y sont pas encore
-    return combined
+    return serverLots
   }, [serverLots])
 
   const groupedLotIds = useMemo(
@@ -78,20 +83,37 @@ export default function GestionLotsPage() {
     [allGroups]
   )
   const coopLots = useMemo(
-    () => allLots.filter((lot) => {
+    () => allLots.filter((lot: any) => {
+      const lotId = lot.lotId || lot.lotHash || lot.id
+      const isNotGroup = !lot.isGroup
+      const isNotGrouped = !groupedLotIds.has(lotId)
+
+      // Correspondance par coopId blockchain (format COOPERATIVE-xxx)
+      const matchesCoopId = coopBlockchainId && lot.coopId === coopBlockchainId
+      // Correspondance par coopName (store local)
       const coopName = lot.coopName || lot.coop_name
-      const lotId = lot.lotId || lot.id
-      const isThisCoop = coopName === user?.nomAffiche || coopName === user?.orgName
-      return isThisCoop && !lot.isGroup && !groupedLotIds.has(lotId)
+      const matchesCoopName = coopName && (coopName === user?.nomAffiche || coopName === user?.orgName)
+
+      // Debug
+      if (process.env.NODE_ENV === 'development') {
+        if (!matchesCoopId && !matchesCoopName) {
+          // Pas de match silencieux
+        }
+      }
+
+      // Si aucun ID coop défini, afficher tous les lots (mode développement)
+      if (!coopBlockchainId) return isNotGroup && isNotGrouped
+
+      return (matchesCoopId || matchesCoopName) && isNotGroup && isNotGrouped
     }),
-    [groupedLotIds, allLots, user]
+    [groupedLotIds, allLots, user, coopBlockchainId]
   )
   const selectedLot = selectedLotId
-    ? allLots.find((lot) => (lot.lotId || lot.id) === selectedLotId) ?? null
+    ? allLots.find((lot: any) => (lot.lotId || lot.lotHash || lot.id) === selectedLotId) ?? null
     : null
   const groups = user ? getGroupsByManager(user.userId) : []
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     if (!user || selectedLots.length === 0 || !newGroupName) return
 
     const sourceLots = allLots.filter((lot: any) => selectedLots.includes(lot.lotId || lot.id))
@@ -103,12 +125,38 @@ export default function GestionLotsPage() {
       return
     }
 
+    setIsGrouping(true)
     const totalWeight = sourceLots.reduce((sum: number, lot: any) => sum + (lot.poidsKg || lot.poids_kg || 0), 0)
-    const groupBase = averageCoordinates(sourceLots)
     const sourceLotIds: string[] = sourceLots.map((lot: any) => (lot.lotId || lot.id) as string)
     const uniquePhotoUrls: string[] = Array.from(new Set(sourceLots.flatMap((lot: any) => (lot.photoUrls || []) as string[])))
     const uniquePhotoHashes: string[] = Array.from(new Set(sourceLots.flatMap((lot: any) => (lot.photoHashes || []) as string[])))
     const firstLot = sourceLots[0] as any
+
+    // Appel blockchain via le hook (avec invalidation de cache automatique)
+    const bundleHash = `BUNDLE-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+    let blockchainSuccess = false
+    try {
+      await regroupLots({
+        bundleHash,
+        lotHashes: sourceLotIds,
+        coopId: coopBlockchainId,
+      })
+      blockchainSuccess = true
+    } catch (e) {
+      console.warn("[Groupement] Blockchain regroup call failed, creating locally only:", e)
+    }
+
+    // Calculer le GPS moyen (robuste: gps peut être tableau ou objet)
+    const getCoords = (lot: any) => {
+      if (!lot.gps) return { latitude: 0, longitude: 0 }
+      if (Array.isArray(lot.gps) && lot.gps.length > 0) return lot.gps[0]
+      return lot.gps
+    }
+    const gpsCoords = sourceLots.map(getCoords)
+    const groupBase = {
+      latitude: gpsCoords.reduce((s: number, g: any) => s + (g.latitude || 0), 0) / (gpsCoords.length || 1),
+      longitude: gpsCoords.reduce((s: number, g: any) => s + (g.longitude || 0), 0) / (gpsCoords.length || 1),
+    }
 
     const groupRecord = createGroup(newGroupName, user.userId, sourceLotIds, totalWeight)
 
@@ -117,13 +165,13 @@ export default function GestionLotsPage() {
       photoUrls: uniquePhotoUrls,
       photoHashes: uniquePhotoHashes,
       gps: groupBase,
-      region: firstLot.region,
+      region: firstLot.region || firstLot.espece || "—",
       poidsKg: totalWeight,
-      espece: firstLot.espece,
+      espece: firstLot.espece || "—",
       dateCollecte: Date.now(),
       coopName: newGroupName,
       statut: "transferred",
-      syncStatus: "pending",
+      syncStatus: blockchainSuccess ? "synced" : "pending",
       createdBy: user.userId,
       isGroup: true,
       groupId: groupRecord.groupId,
@@ -146,6 +194,8 @@ export default function GestionLotsPage() {
         sourceLots: sourceLotIds,
         sourceLotCount: sourceLotIds.length,
         totalWeight,
+        bundleHash,
+        blockchainConfirmed: blockchainSuccess,
       },
     })
 
@@ -177,12 +227,28 @@ export default function GestionLotsPage() {
     setOpen(false)
     setSelectedLotId(groupLot.lotId)
     setLotDetailOpen(true)
-    setStatusMessage(`Groupement ${newGroupName} créé avec succès.`)
+    setIsGrouping(false)
+    setStatusMessage(
+      blockchainSuccess
+        ? `✅ Groupement "${newGroupName}" créé et enregistré sur la blockchain (${bundleHash}).`
+        : `⚠️ Groupement "${newGroupName}" créé localement. L'enregistrement blockchain a échoué — il sera retentera automatiquement.`
+    )
   }
 
   const openLot = (lotId: string) => {
+    // Chercher d'abord dans allLots (lots blockchain + locaux normalisés)
+    const lotFromAll = allLots.find((l: any) => (l.lotId || l.lotHash || l.id) === lotId)
+    if (lotFromAll) {
+      setSelectedLotId(lotId)
+      setLotDetailOpen(true)
+      return
+    }
+    // Fallback: chercher dans le store local
     const lot = getLotById(lotId)
-    if (!lot) return
+    if (!lot) {
+      setStatusMessage(`Lot ${lotId} introuvable — il se peut qu'il n'ait pas encore été synchronisé.`)
+      return
+    }
     setSelectedLotId(lot.lotId)
     setLotDetailOpen(true)
   }
@@ -267,10 +333,10 @@ export default function GestionLotsPage() {
 
               <Button
                 onClick={handleCreateGroup}
-                disabled={!newGroupName || selectedLots.length === 0}
+                disabled={!newGroupName || selectedLots.length === 0 || isGrouping}
                 className="w-full"
               >
-                Créer le Groupement
+                {isGrouping ? "Enregistrement en cours..." : "Créer le Groupement"}
               </Button>
             </div>
           </DialogContent>
@@ -317,10 +383,10 @@ export default function GestionLotsPage() {
                         setLotDetailOpen(true)
                       }}
                     >
-                      <td className="px-4 py-3 font-mono text-xs">{lot.lotId || lot.id}</td>
-                      <td className="px-4 py-3">{lot.coopName || lot.coop_name}</td>
-                      <td className="px-4 py-3">{lot.poidsKg || lot.poids_kg} kg</td>
-                      <td className="px-4 py-3">{lot.region}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{(lot as any).lotId || (lot as any).lotHash || (lot as any).id}</td>
+                      <td className="px-4 py-3">{(lot as any).farmerId || (lot as any).coopName || (lot as any).coop_name || "—"}</td>
+                      <td className="px-4 py-3">{(lot as any).poidsKg || (lot as any).poids_kg || "0"} kg</td>
+                      <td className="px-4 py-3">{(lot as any).region || (lot as any).espece || "—"}</td>
                       <td className="px-4 py-3">
                         <Badge variant="outline">{translateStatus(lot.statut)}</Badge>
                       </td>
@@ -382,9 +448,23 @@ export default function GestionLotsPage() {
 
                       <div className="flex flex-col items-start gap-2 lg:items-end">
                         {groupLot ? (
-                          <Button onClick={() => openLot(groupLot.lotId)} variant="outline">
-                            Ouvrir le groupement
-                          </Button>
+                          <>
+                            <Button onClick={() => openLot(groupLot.lotId)} variant="outline">
+                              Ouvrir le groupement
+                            </Button>
+                            <TransferLotDialog
+                              lotHashes={[groupLot.lotId]}
+                              isSubmitting={isTransferring}
+                              onSubmit={(payload, onSuccess) => {
+                                createTransfer(payload)
+                                  .then(() => {
+                                    onSuccess()
+                                    setStatusMessage(`✅ Groupement "${group.coopName}" transféré avec succès.`)
+                                  })
+                                  .catch((e) => setStatusMessage(`❌ Erreur: ${e.message}`))
+                              }}
+                            />
+                          </>
                         ) : null}
                         <p className="text-xs text-muted-foreground">
                           Créé le {new Date(group.createdAt).toLocaleString("fr-FR")}
@@ -401,7 +481,11 @@ export default function GestionLotsPage() {
         </CardContent>
       </Card>
 
-      <LotDetailModal lot={selectedLot} open={lotDetailOpen} onOpenChange={setLotDetailOpen} />
+      <LotDetailModal
+        lot={(selectedLotId ? allLots.find((l: any) => (l.lotId || l.lotHash || l.id) === selectedLotId) ?? null : null) as any}
+        open={lotDetailOpen}
+        onOpenChange={setLotDetailOpen}
+      />
     </div>
   )
 }

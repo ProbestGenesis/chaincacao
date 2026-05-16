@@ -88,11 +88,11 @@ export function TransferRoleDialog({
 
   const handleFormSubmit = async (values: FormValues) => {
     const payload: TransferPayload = {
-      transfer_hash: `TRF-${Date.now()}`,
-      lot_hashes: [lot.lotId],
-      expediteur_id: currentUserId,
-      destinataire_id: values.destinataire_id,
-      preuve_hash: `PROOF-${Math.random().toString(36).substring(7)}`,
+      transferHash: `TRF-${Date.now()}`,
+      lotHashes: [lot.lotId],
+      expediteurId: currentUserId,
+      destinataireId: values.destinataire_id,
+      file: new File([""], "transfer_proof.pdf", { type: "application/pdf" })
     }
 
     try {

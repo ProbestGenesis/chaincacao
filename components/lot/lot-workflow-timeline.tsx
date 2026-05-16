@@ -92,11 +92,15 @@ export function LotWorkflowTimeline({
     new Set(actions.map((action) => action.actor))
   )
 
-  const formatDate = (timestamp: number) =>
-    new Intl.DateTimeFormat("fr-FR", {
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp)
+    if (isNaN(date.getTime())) return "Date inconnue"
+    
+    return new Intl.DateTimeFormat("fr-FR", {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(new Date(timestamp))
+    }).format(date)
+  }
 
   return (
     <div className={cn("space-y-4", compact && "space-y-3")}>

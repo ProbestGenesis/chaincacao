@@ -8,6 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useTraceability } from "@/hooks/useTraceability"
+import { FarmerTransferDialog } from "@/components/traceability/farmer-transfer-dialog"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   draft: { label: "Initialisé", variant: "outline" },
@@ -15,12 +19,19 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   transferred: { label: "Transféré", variant: "secondary" },
   transformed: { label: "Transformé", variant: "default" },
   exported: { label: "Exporté", variant: "default" },
+  // Blockchain statuses
+  COLLECTE: { label: "Récolté", variant: "outline" },
+  EN_TRANSIT: { label: "En Transit", variant: "secondary" },
+  TRANSFORME: { label: "Transformé", variant: "default" },
+  EXPORTE: { label: "Exporté", variant: "default" },
 }
 
 export default function MesLotsPage() {
   const { user } = useUser()
   const farmerId = user?.blockchainId || user?.userId || ""
   const { data: lots = [], isLoading } = useFarmerLots(farmerId)
+  const { createTransfer, isSubmitting } = useTraceability()
+  const queryClient = useQueryClient()
 
   return (
     <div className="space-y-6 p-6">
@@ -64,21 +75,35 @@ export default function MesLotsPage() {
                 </thead>
                 <tbody>
                   {lots.map((lot: any) => (
-                    <tr key={lot.lotId || lot.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4 font-mono text-xs">{lot.lotId || lot.id}</td>
+                    <tr key={lot.lotId || lot.lotHash || lot.id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-4 font-mono text-xs">{lot.lotId || lot.lotHash || lot.id}</td>
                       <td className="py-3 px-4">{lot.espece}</td>
                       <td className="py-3 px-4">{lot.poidsKg || lot.poids_kg}</td>
-                      <td className="py-3 px-4">{lot.region}</td>
+                      <td className="py-3 px-4">{lot.region || "—"}</td>
                       <td className="py-3 px-4">
                         <Badge variant={statusLabels[lot.statut]?.variant || "outline"}>
                           {statusLabels[lot.statut]?.label || lot.statut}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-xs">{lot.coopName || lot.coop_name}</td>
-                      <td className="py-3 px-4">
-                        <Button asChild variant="outline" size="sm" className="rounded-full">
-                          <Link href={`/agriculteur/lots/${lot.lotId || lot.id}`}>Voir</Link>
+                      <td className="py-3 px-4 text-xs">{lot.coopName || lot.coopId || lot.coop_name || "—"}</td>
+                      <td className="py-3 px-4 flex gap-2 items-center">
+                        <Button asChild variant="outline" size="sm" className="rounded-full h-8">
+                          <Link href={`/agriculteur/lots/${lot.lotId || lot.lotHash || lot.id}`}>Voir</Link>
                         </Button>
+                        
+                        {(lot.statut === "COLLECTE" || lot.statut === "draft" || lot.statut === "pending") && lot.coopId && (
+                          <FarmerTransferDialog 
+                            lotHash={lot.lotHash || lot.lotId || lot.id}
+                            coopId={lot.coopId}
+                            isSubmitting={isSubmitting}
+                            onTransfer={(payload, onSuccess) => {
+                              createTransfer(payload).then(() => {
+                                queryClient.invalidateQueries({ queryKey: [queryKeys.lots] })
+                                onSuccess()
+                              })
+                            }}
+                          />
+                        )}
                       </td>
                     </tr>
                   ))}

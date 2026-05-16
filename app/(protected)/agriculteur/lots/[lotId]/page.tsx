@@ -12,6 +12,7 @@ import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
+import { useLot } from "@/hooks/useLots"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +25,11 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   transferred: { label: "Transféré", color: "bg-blue-100 text-blue-800" },
   transformed: { label: "Transformé", color: "bg-orange-100 text-orange-800" },
   exported: { label: "Exporté", color: "bg-green-100 text-green-800" },
+  // Blockchain statuses
+  COLLECTE: { label: "Récolté", color: "bg-gray-100 text-gray-800" },
+  EN_TRANSIT: { label: "En Transit", color: "bg-blue-100 text-blue-800" },
+  TRANSFORME: { label: "Transformé", color: "bg-orange-100 text-orange-800" },
+  EXPORTE: { label: "Exporté", color: "bg-green-100 text-green-800" },
 }
 
 export default function LotDetailPage() {
@@ -37,10 +43,27 @@ export default function LotDetailPage() {
   const [copyLabel, setCopyLabel] = useState("Copier l'ID")
 
   const lotId = params.lotId as string
-  const lot = getLotById(lotId)
+  const localLot = getLotById(lotId)
+  
+  const { data: remoteResponse, isLoading } = useLot(lotId)
+  
+  // Si remoteResponse a une propriété .data (réponse structurée de l'API), on l'utilise
+  let remoteLot = remoteResponse?.data || remoteResponse
+  
+  // Si c'est un tableau, on prend le premier élément (cas fréquent des API de query)
+  if (Array.isArray(remoteLot) && remoteLot.length > 0) {
+    remoteLot = remoteLot[0]
+  }
+  
+  const lot = localLot || remoteLot
 
-  const qrValue = lot ? `chaincacao://lot/${lot.lotId}` : ""
-  const timeline = lot ? getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups)) : []
+  // Debug log pour voir la structure reçue
+  if (lot) console.log("Lot Detail Data:", lot)
+
+  const qrValue = lot 
+    ? `https://chaincacao-production-363c.up.railway.app/agriculteur/lots/${lot.lotId || lot.lotHash || lotId}` 
+    : ""
+  const timeline = lot ? getLotTimeline(lot.lotId || lot.lotHash || lotId, getLotHistoryIds(lot, groups)) : []
 
   const copyLotId = async () => {
     if (!lot) return
@@ -57,6 +80,20 @@ export default function LotDetailPage() {
     link.href = canvas.toDataURL("image/png")
     link.download = `${lot.lotId}-qr.png`
     link.click()
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-6">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/agriculteur/lots">
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </Link>
+        </Button>
+        <p className="text-muted-foreground">Recherche du lot en cours...</p>
+      </div>
+    )
   }
 
   if (!lot) {
@@ -80,7 +117,7 @@ export default function LotDetailPage() {
           <Badge variant="secondary" className="rounded-full">
             Détail du lot
           </Badge>
-          <h1 className="mt-2 text-3xl font-bold">{lot.lotId}</h1>
+          <h1 className="mt-2 text-3xl font-bold">{lot.lotId || lot.lotHash || lotId}</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
             Vue complète du lot avec preuve QR, historique des validations et état de
             synchronisation hors chaîne.
@@ -115,30 +152,38 @@ export default function LotDetailPage() {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Espèce</p>
-              <p className="font-semibold">{lot.espece}</p>
+              <p className="font-semibold">{lot.espece || lot.species || lot.product || "—"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Poids</p>
-              <p className="font-semibold">{lot.poidsKg} kg</p>
+              <p className="font-semibold">{lot.poidsKg || lot.poids_kg || lot.weight || "0"} kg</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Région</p>
-              <p className="font-semibold">{lot.region}</p>
+              <p className="font-semibold">{lot.region || lot.location || "—"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Coopérative</p>
-              <p className="font-semibold">{lot.coopName}</p>
+              <p className="font-semibold">{lot.coopName || lot.coopId || lot.coop_name || "—"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">GPS</p>
               <p className="font-semibold">
-                {lot.gps.latitude.toFixed(4)}, {lot.gps.longitude.toFixed(4)}
+                {Array.isArray(lot.gps) && lot.gps.length > 0 
+                  ? `${lot.gps[0].latitude.toFixed(4)}, ${lot.gps[0].longitude.toFixed(4)}`
+                  : lot.gps?.latitude 
+                    ? `${lot.gps.latitude.toFixed(4)}, ${lot.gps.longitude.toFixed(4)}`
+                    : lot.latitude 
+                      ? `${lot.latitude.toFixed(4)}, ${lot.longitude.toFixed(4)}`
+                      : "—"}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date de collecte</p>
               <p className="font-semibold">
-                {new Date(lot.dateCollecte).toLocaleDateString("fr-FR")}
+                {lot.dateCollecte || lot.date_collecte
+                  ? new Date(lot.dateCollecte || lot.date_collecte).toLocaleDateString("fr-FR")
+                  : "—"}
               </p>
             </div>
           </CardContent>

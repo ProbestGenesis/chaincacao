@@ -23,10 +23,10 @@ export function AgriculteurDashboard() {
 
   const statusCounts = {
     draft: farmerLots.filter((l) => l.statut === "draft").length,
-    pending: farmerLots.filter((l) => l.statut === "pending").length,
-    transferred: farmerLots.filter((l) => l.statut === "transferred").length,
-    transformed: farmerLots.filter((l) => l.statut === "transformed").length,
-    exported: farmerLots.filter((l) => l.statut === "exported").length,
+    pending: farmerLots.filter((l) => l.statut === "pending" || l.statut === "COLLECTE").length,
+    transferred: farmerLots.filter((l) => l.statut === "transferred" || l.statut === "EN_TRANSIT").length,
+    transformed: farmerLots.filter((l) => l.statut === "transformed" || l.statut === "TRANSFORME").length,
+    exported: farmerLots.filter((l) => l.statut === "exported" || l.statut === "EXPORTE").length,
   }
 
   const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -35,6 +35,10 @@ export function AgriculteurDashboard() {
     transferred: { label: "Transféré", variant: "secondary" },
     transformed: { label: "Transformé", variant: "default" },
     exported: { label: "Exporté", variant: "default" },
+    COLLECTE: { label: "Récolté", variant: "outline" },
+    EN_TRANSIT: { label: "En Transit", variant: "secondary" },
+    TRANSFORME: { label: "Transformé", variant: "default" },
+    EXPORTE: { label: "Exporté", variant: "default" },
   }
 
   return (

@@ -45,12 +45,35 @@ export const traceabilityService = {
   getShipmentReportPdf: (shipmentHash: string) =>
     api.get<Blob>(`/api/v1/audit/shipment-report/${shipmentHash}/pdf`, { responseType: "blob" }),
 
-  createTransfer: (payload: TransferPayload) => 
-    api.post<any>("/api/v1/traceability/transfers", payload),
+  createTransfer: (payload: TransferPayload) => {
+    const formData = new FormData()
+    formData.append("transferHash", payload.transferHash)
+    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
+    formData.append("expediteurId", payload.expediteurId)
+    formData.append("destinataireId", payload.destinataireId)
+    if (payload.transporteurId) formData.append("transporteurId", payload.transporteurId)
+    formData.append("file", payload.file)
+    return api.post<any>("/api/v1/traceability/transfers", formData, { isFormData: true })
+  },
     
-  createTransformation: (payload: TransformationPayload) => 
-    api.post<any>("/api/v1/traceability/transformations", payload),
+  createTransformation: (payload: TransformationPayload) => {
+    const formData = new FormData()
+    formData.append("transformationHash", payload.transformationHash)
+    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
+    formData.append("typeProcessus", payload.typeProcessus)
+    formData.append("file", payload.file)
+    return api.post<any>("/api/v1/traceability/transformations", formData, { isFormData: true })
+  },
     
-  createShipment: (payload: ShipmentPayload) => 
-    api.post<any>("/api/v1/traceability/shipments", payload),
+  createShipment: (payload: ShipmentPayload) => {
+    const formData = new FormData()
+    formData.append("shipmentHash", payload.shipmentHash)
+    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
+    formData.append("exportateurId", payload.exportateurId)
+    formData.append("destination", payload.destination)
+    formData.append("dateDepartPrevue", payload.dateDepartPrevue)
+    formData.append("dateArriveePrevue", payload.dateArriveePrevue)
+    formData.append("file", payload.file)
+    return api.post<any>("/api/v1/traceability/shipments", formData, { isFormData: true })
+  },
 }

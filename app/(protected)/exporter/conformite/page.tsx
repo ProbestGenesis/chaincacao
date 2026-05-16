@@ -101,8 +101,8 @@ export default function ConformitePage() {
     const lot = selectedLot
     setStatusMessage(
       lot
-        ? hasLotAction(lot.lotId, "verified", "controle")
-          ? `La conformité est déjà validée pour ${lot.lotId}`
+        ? hasLotAction((lot as any).lotId || (lot as any).lotHash || (lot as any).id, "verified", "controle")
+          ? `La conformité est déjà validée pour ${(lot as any).lotId || (lot as any).lotHash || (lot as any).id}`
           : canConfirmEUDR
             ? `Lot trouvé: le bouton de confirmation est maintenant disponible.`
             : "Lot trouvé: la vérification reste réservée au rôle Exporter."
@@ -165,7 +165,7 @@ export default function ConformitePage() {
         metadata: {
           shipmentId,
           lotId,
-          groupLotId: lot.isGroup ? lot.lotId : undefined,
+          groupLotId: lot.isGroup ? (lot as any).lotId || (lot as any).lotHash || (lot as any).id : undefined,
           confirmedLotIds: lineageLotIds,
           eudrStatus: "conformante",
           documents: ["rapport-eudr.pdf", "liste-pieces-export.pdf"],
@@ -256,7 +256,7 @@ export default function ConformitePage() {
                           className="h-auto w-full flex-col items-start rounded-2xl border bg-background/80 p-3 text-left transition hover:border-primary/60 hover:bg-muted/40"
                         >
                           <p className="font-mono text-sm font-semibold">
-                            {lot.lotId}
+                            {(lot as any).lotId || (lot as any).lotHash || (lot as any).id}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {lot.poidsKg} kg • {lot.region} • {lot.espece}

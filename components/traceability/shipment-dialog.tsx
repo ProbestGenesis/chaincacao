@@ -14,9 +14,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Ship, Globe, Calendar } from "lucide-react"
+import { Ship, Globe, Calendar, FileUp } from "lucide-react"
 import type { ShipmentPayload } from "@/types/api-traceability"
 import { useTraceability } from "@/hooks/useTraceability"
+import { useUser } from "@/context/useUser"
 
 interface ShipmentDialogProps {
   lotHashes: string[]
@@ -31,18 +32,22 @@ type FormValues = {
 
 export function ShipmentDialog({ lotHashes, onSuccess }: ShipmentDialogProps) {
   const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const { user } = useUser()
   const { createShipment, isSubmitting } = useTraceability()
   const { register, handleSubmit, watch, reset } = useForm<FormValues>()
 
   const handleFormSubmit = async (values: FormValues) => {
+    if (!file) return
+
     const payload: ShipmentPayload = {
       shipmentHash: `SHP-${Date.now()}`,
       lotHashes: lotHashes,
-      exportateurId: "CURRENT_USER_ID",
+      exportateurId: user?.blockchainId || user?.userId || "UNKNOWN",
       destination: values.destination,
-      documentsHash: `DOC-${Math.random().toString(36).substring(7)}`,
       dateDepartPrevue: values.dateDepart,
       dateArriveePrevue: values.dateArrivee,
+      file: file,
     }
     
     try {
@@ -113,6 +118,16 @@ export function ShipmentDialog({ lotHashes, onSuccess }: ShipmentDialogProps) {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="shipment-file">Documents d'expédition (Connaissement/Certificats) *</Label>
+            <Input
+              id="shipment-file"
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="cursor-pointer"
+            />
+          </div>
+
           <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-100 text-xs text-emerald-800">
             <strong>Note :</strong> L'expédition lie automatiquement les certificats de non-déforestation (EUDR) aux lots sélectionnés pour les autorités douanières.
           </div>
@@ -121,7 +136,7 @@ export function ShipmentDialog({ lotHashes, onSuccess }: ShipmentDialogProps) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isSubmitting || !canSubmit}>
+            <Button type="submit" disabled={isSubmitting || !canSubmit || !file}>
               {isSubmitting ? "Enregistrement..." : "Confirmer l'expédition"}
             </Button>
           </DialogFooter>

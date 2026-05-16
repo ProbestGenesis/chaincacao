@@ -35,21 +35,21 @@ function TransformerLotsContent() {
 
   const transformerLots = useMemo(
     () =>
-      lots.filter((lot) =>
-        ["pending", "transferred", "verified", "transformed", "exported"].includes(lot.statut)
+      lots.filter((lot: any) =>
+        ["pending", "transferred", "verified", "transformed", "exported", "EN_TRANSIT", "TRANSFORME", "EXPORTE"].includes(lot.statut)
       ),
     [lots]
   )
 
   const filteredLots = transformerLots.filter(
-    (lot) =>
-      lot.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.espece.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.coopName.toLowerCase().includes(searchTerm.toLowerCase())
+    (lot: any) =>
+      (lot.lotId || lot.lotHash || lot.id || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lot.espece || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lot.region || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lot.coopName || lot.coopId || lot.coop_name || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
   const selectedLot = selectedLotId
-    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    ? lots.find((lot: any) => (lot.lotId || lot.lotHash || lot.id) === selectedLotId) ?? null
     : null
 
   const metrics = [
@@ -71,7 +71,7 @@ function TransformerLotsContent() {
     {
       label: "Historique",
       value: transformerLots.reduce(
-        (sum, lot) => sum + getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups)).length,
+        (sum, lot: any) => sum + getLotTimeline(lot.lotId || lot.lotHash || lot.id, getLotHistoryIds(lot, groups)).length,
         0
       ),
       note: "Actions et validations",
@@ -84,28 +84,28 @@ function TransformerLotsContent() {
       title: "À réceptionner",
       subtitle: "Lots en attente de prise en charge",
       color: "bg-yellow-100 text-yellow-800",
-      lots: filteredLots.filter((lot) => lot.statut === "pending"),
+      lots: filteredLots.filter((lot: any) => lot.statut === "pending" || lot.statut === "EN_TRANSIT"),
     },
     {
       key: "transferred",
       title: "À transformer",
       subtitle: "Réception confirmée",
       color: "bg-blue-100 text-blue-800",
-      lots: filteredLots.filter((lot) => lot.statut === "transferred"),
+      lots: filteredLots.filter((lot: any) => lot.statut === "transferred"),
     },
     {
       key: "verified",
       title: "Contrôle qualité",
       subtitle: "Validation intermédiaire",
       color: "bg-violet-100 text-violet-800",
-      lots: filteredLots.filter((lot) => lot.statut === "verified"),
+      lots: filteredLots.filter((lot: any) => lot.statut === "verified"),
     },
     {
       key: "transformed",
       title: "Transformés",
       subtitle: "Prêts pour contrôle final",
       color: "bg-orange-100 text-orange-800",
-      lots: filteredLots.filter((lot) => lot.statut === "transformed" || lot.statut === "exported"),
+      lots: filteredLots.filter((lot: any) => lot.statut === "transformed" || lot.statut === "exported" || lot.statut === "TRANSFORME" || lot.statut === "EXPORTE"),
     },
   ]
 
@@ -168,32 +168,32 @@ function TransformerLotsContent() {
             </CardHeader>
             <CardContent className="space-y-3">
               {column.lots.length > 0 ? (
-                column.lots.map((lot) => {
-                  const timeline = getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups))
+                column.lots.map((lot: any) => {
+                  const timeline = getLotTimeline(lot.lotId || lot.lotHash || lot.id, getLotHistoryIds(lot as any, groups))
                   const lastEvent = timeline[timeline.length - 1]
 
                   return (
                     <button
-                      key={lot.lotId}
+                      key={lot.lotId || lot.lotHash || lot.id}
                       type="button"
                       onClick={() => {
-                        setSelectedLotId(lot.lotId)
+                        setSelectedLotId(lot.lotId || lot.lotHash || lot.id)
                         setDetailOpen(true)
                       }}
                       className="w-full rounded-2xl border bg-muted/20 p-3 text-left transition hover:border-primary/60 hover:bg-muted/40"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-mono text-xs font-semibold">{lot.lotId}</p>
+                          <p className="font-mono text-xs font-semibold">{lot.lotId || lot.lotHash || lot.id}</p>
                           <p className="text-xs text-muted-foreground">
-                            {lot.poidsKg} kg • {lot.region}
+                            {lot.poidsKg || lot.poids_kg || "0"} kg • {lot.region || lot.espece || "—"}
                           </p>
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
 
-                      <p className="mt-2 text-sm font-medium">{lot.espece}</p>
-                      <p className="text-xs text-muted-foreground">{lot.coopName}</p>
+                      <p className="mt-2 text-sm font-medium">{lot.espece || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{lot.coopName || lot.coopId || lot.coop_name || "—"}</p>
 
                       {lastEvent ? (
                         <div className="mt-3 rounded-xl bg-background/80 p-2 text-xs">

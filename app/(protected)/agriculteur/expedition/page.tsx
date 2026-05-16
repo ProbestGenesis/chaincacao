@@ -19,8 +19,8 @@ export default function ExpeditionAgriculteurPage() {
     loadLots()
   }, [loadLots])
 
-  const lots = user ? serverLots.filter(l => l.farmer_id === user.userId || l.farmerId === user.userId) : []
-  const ongoingExpeditions = lots.filter(l => ["pending", "transferred", "en_transit"].includes(l.statut))
+  const lots = user ? serverLots.filter((l: any) => l.farmer_id === user.userId || l.farmerId === user.userId || l.ownerId === user.blockchainId) : []
+  const ongoingExpeditions = lots.filter((l: any) => ["pending", "transferred", "en_transit", "EN_TRANSIT", "COLLECTE"].includes(l.statut))
 
   return (
     <div className="space-y-6 p-6">
@@ -49,13 +49,13 @@ export default function ExpeditionAgriculteurPage() {
           </div>
         ) : ongoingExpeditions.length > 0 ? (
           ongoingExpeditions.map((lot) => (
-            <Card key={lot.lotId || lot.id} className="relative overflow-hidden">
+            <Card key={lot.lotId || lot.lotHash || lot.id} className="relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row justify-between gap-6">
                   <div className="space-y-4 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-bold">{lot.lotId || lot.id}</p>
+                      <p className="font-mono text-sm font-bold">{lot.lotId || lot.lotHash || lot.id}</p>
                       <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
                     </div>
                     
@@ -66,7 +66,7 @@ export default function ExpeditionAgriculteurPage() {
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground uppercase font-bold">Départ</p>
-                          <p className="text-sm">{lot.region}</p>
+                          <p className="text-sm">{lot.region || lot.espece || "—"}</p>
                         </div>
                       </div>
                       <div className="flex-1 h-px bg-dashed border-t-2 border-dashed border-muted relative">
@@ -78,7 +78,7 @@ export default function ExpeditionAgriculteurPage() {
                         </div>
                         <div>
                           <p className="text-[10px] text-muted-foreground uppercase font-bold">Destination</p>
-                          <p className="text-sm">{lot.coopName || "Centre de collecte"}</p>
+                          <p className="text-sm">{lot.coopName || lot.coopId || lot.coop_name || "Centre de collecte"}</p>
                         </div>
                       </div>
                     </div>
@@ -87,10 +87,10 @@ export default function ExpeditionAgriculteurPage() {
                   <div className="md:w-48 space-y-3">
                     <div className="bg-muted/40 p-3 rounded-xl text-center">
                       <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Poids</p>
-                      <p className="text-xl font-bold">{lot.poidsKg || lot.poids_kg} kg</p>
+                      <p className="text-xl font-bold">{lot.poidsKg || lot.poids_kg || "0"} kg</p>
                     </div>
                     <Button asChild className="w-full rounded-xl" size="sm">
-                      <Link href={`/agriculteur/lots/${lot.lotId || lot.id}`}>Détails</Link>
+                      <Link href={`/agriculteur/lots/${lot.lotId || lot.lotHash || lot.id}`}>Détails</Link>
                     </Button>
                   </div>
                 </div>

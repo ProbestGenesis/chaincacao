@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -38,15 +39,18 @@ const PROCESS_TYPES = [
 
 export function TransformationDialog({ lotHashes, onSuccess }: TransformationDialogProps) {
   const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
   const { createTransformation, isSubmitting } = useTraceability()
-  const { register, handleSubmit, setValue, watch, reset } = useForm<{ type_processus: string }>()
+  const { register, handleSubmit, setValue, watch, reset } = useForm<{ typeProcessus: string }>()
 
-  const handleFormSubmit = async (values: { type_processus: string }) => {
+  const handleFormSubmit = async (values: { typeProcessus: string }) => {
+    if (!file) return
+
     const payload: TransformationPayload = {
-      transformation_hash: `TRN-${Date.now()}`,
-      lot_hashes: lotHashes,
-      type_processus: values.type_processus,
-      preuve_hash: `PROOF-${Math.random().toString(36).substring(7)}`,
+      transformationHash: `TRN-${Date.now()}`,
+      lotHashes: lotHashes,
+      typeProcessus: values.typeProcessus,
+      file: file,
     }
     
     // Ajout d'une méthode au hook si elle manque, ou utilisation directe du service
@@ -89,7 +93,7 @@ export function TransformationDialog({ lotHashes, onSuccess }: TransformationDia
 
           <div className="space-y-1.5">
             <Label htmlFor="process">Type de processus *</Label>
-            <Select onValueChange={(v) => setValue("type_processus", v)}>
+            <Select onValueChange={(v) => setValue("typeProcessus", v)}>
               <SelectTrigger id="process">
                 <SelectValue placeholder="Choisir le type de transformation" />
               </SelectTrigger>
@@ -103,6 +107,16 @@ export function TransformationDialog({ lotHashes, onSuccess }: TransformationDia
             </Select>
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="transformation-file">Rapport de transformation/Preuve *</Label>
+            <Input
+              id="transformation-file"
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="cursor-pointer"
+            />
+          </div>
+
           <div className="rounded-lg bg-blue-50 p-3 border border-blue-100 flex gap-3 italic">
             <ShieldCheck className="size-5 text-blue-600 shrink-0" />
             <p className="text-xs text-blue-800">
@@ -114,7 +128,7 @@ export function TransformationDialog({ lotHashes, onSuccess }: TransformationDia
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isSubmitting || !watch("type_processus")}>
+            <Button type="submit" disabled={isSubmitting || !watch("typeProcessus") || !file}>
               {isSubmitting ? "Enregistrement..." : "Valider la transformation"}
             </Button>
           </DialogFooter>
