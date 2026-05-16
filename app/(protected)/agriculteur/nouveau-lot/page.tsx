@@ -63,7 +63,7 @@ export default function NouveauLotPage() {
             espece: "",
             poidsKg: 0,
             parcelleId: "",
-            coopId: user?.coopId || "COOPERATIVE-d747efbf",
+            coopId: user?.coopId || "COOPERATIVE-d000032d",
             dateCollecte: new Date(),
           }}
         />
