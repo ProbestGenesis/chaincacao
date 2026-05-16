@@ -24,6 +24,7 @@ import { useRecipients } from "@/hooks/api/useAuth"
 import { useUser } from "@/context/useUser"
 import { useTraceability } from "@/hooks/useTraceability"
 import { getLotTraceabilityIds } from "@/lib/lot-lineage"
+import { normalizeRole } from "@/lib/navigation/role-config"
 import type { Lot, UserRole } from "@/types/types"
 import type { TransferPayload } from "@/types/api-traceability"
 
@@ -134,7 +135,7 @@ export function TransferRoleDialog({
                 )}
               </SelectContent>
             </Select>
-            {destinations.length === 0 && activeRole === "COOPERATIVE" && (
+            {destinations.length === 0 && normalizeRole(activeRole || "") === "CoopManager" && (
               <p className="text-[10px] text-amber-600 mt-1">
                 Note: Seuls les exportateurs et transformateurs validés sur la blockchain sont listés.
               </p>

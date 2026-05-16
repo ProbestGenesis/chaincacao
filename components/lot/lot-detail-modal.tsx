@@ -29,6 +29,7 @@ import { useUser } from "@/context/useUser"
 import { useLotEUDR, useLotHistories } from "@/hooks/useTraceability"
 import { getLotTraceabilityIds } from "@/lib/lot-lineage"
 import { translateStatus } from "@/lib/status-helper"
+import { normalizeRole } from "@/lib/navigation/role-config"
 import type { LotAction } from "@/store/lot-actions"
 import type { Lot } from "@/types/types"
 
@@ -161,7 +162,7 @@ export function LotDetailModal({
   )
   const isGroupLot = Boolean(lot.isGroup || declaredSourceLots.length > 0)
   const hasConfirmedEUDR = serverEUDR?.success
-  const canAccessCompliance = activeRole === "Exporter"
+  const canAccessCompliance = normalizeRole(activeRole || "") === "Exporter"
   const showComplianceTab =
     canAccessCompliance || hasConfirmedEUDR || !!serverEUDR
 
@@ -207,7 +208,11 @@ export function LotDetailModal({
               "EXPORTATEUR",
               "TRANSFORMATEUR",
               "MINISTERE",
-            ].includes(activeRole || "") ? (
+              "Exporter",
+              "Transformer",
+              "CoopManager",
+              "MinistryAnalyst",
+            ].includes(normalizeRole(activeRole || "")) ? (
               <TabsTrigger value="timeline">
                 Historique ({timeline.length})
               </TabsTrigger>

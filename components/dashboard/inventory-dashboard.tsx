@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useUser } from "@/context/useUser"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useLots } from "@/hooks/useLots"
+import { normalizeRole } from "@/lib/navigation/role-config"
 import { type Lot } from "@/types/types"
 
 export function InventoryDashboard() {
@@ -31,7 +32,7 @@ export function InventoryDashboard() {
     return <div className="p-8 text-center">Chargement de l'inventaire...</div>
   }
 
-  if (activeRole === "CoopManager") {
+  if (normalizeRole(activeRole || "") === "CoopManager") {
     return (
       <CooperativeDashboard lots={allLots} groups={groups} section={section} />
     )

@@ -14,6 +14,7 @@ import { useCooperativeStore } from "@/store/cooperative"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { getLotHistoryIds } from "@/lib/lot-lineage"
+import { normalizeRole } from "@/lib/navigation/role-config"
 
 function extractStringValues(value: unknown) {
   return Array.isArray(value)
@@ -28,7 +29,7 @@ export default function ConformiteLotPage() {
   const { getLotTimeline } = useLotActionsStore()
   const groups = useCooperativeStore((state) => state.groups)
   const { getEUDRForLot } = useEUDRStore()
-  const canConfirmEUDR = activeRole === "Exporter"
+  const canConfirmEUDR = normalizeRole(activeRole || "") === "Exporter"
 
   const lotId = params.lotId as string
   const lot = getLotById(lotId)

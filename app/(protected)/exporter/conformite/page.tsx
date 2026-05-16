@@ -1,9 +1,10 @@
 "use client"
 
 import { BadgeCheck, Search, ShieldAlert, Truck } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
 
+import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,13 +16,13 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { useUser } from "@/context/useUser"
+import { useLots } from "@/hooks/useLots"
+import { useTraceability } from "@/hooks/useTraceability"
+import { getLotLineageIds, getLotTraceabilityIds } from "@/lib/lot-lineage"
 import { useEUDRStore } from "@/store/eudr"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
-import { getLotLineageIds, getLotTraceabilityIds } from "@/lib/lot-lineage"
-import { useTraceability } from "@/hooks/useTraceability"
-import { useLots } from "@/hooks/useLots"
-import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
+import { normalizeRole } from "@/lib/navigation/role-config"
 
 export default function ConformitePage() {
   const router = useRouter()
@@ -30,12 +31,18 @@ export default function ConformitePage() {
   const { serverLots, isLoading: isLoadingLots } = useLots()
   const { confirmEUDR, getEUDRByExporter, getEUDRForLot } = useEUDRStore()
   const { addAction, hasLotAction } = useLotActionsStore()
-  const { createCertification, createShipment, isSubmitting } = useTraceability()
+  const { createCertification, createShipment, isSubmitting } =
+    useTraceability()
   const { updateLotStatus, updateLotSyncStatus } = useLotsStore()
-  const canConfirmEUDR = activeRole === "Exporter"
+  const canConfirmEUDR = normalizeRole(activeRole || "") === "Exporter"
 
-  const findLotById = (id: string) => 
-    serverLots.find(l => (l as any).lotId === id || (l as any).lotHash === id || (l as any).id === id)
+  const findLotById = (id: string) =>
+    serverLots.find(
+      (l) =>
+        (l as any).lotId === id ||
+        (l as any).lotHash === id ||
+        (l as any).id === id
+    )
 
   const initialLotId = searchParams.get("lotId")?.trim() ?? ""
   const initialSelectedLot = useMemo(
@@ -45,7 +52,12 @@ export default function ConformitePage() {
   const [searchValue, setSearchValue] = useState(initialLotId)
   const [statusMessage, setStatusMessage] = useState<string | null>(() =>
     initialSelectedLot
-      ? hasLotAction((initialSelectedLot as any).lotId || (initialSelectedLot as any).lotHash, "verified", "controle")
+      ? hasLotAction(
+          (initialSelectedLot as any).lotId ||
+            (initialSelectedLot as any).lotHash,
+          "verified",
+          "controle"
+        )
         ? `La conformité est déjà validée pour ${(initialSelectedLot as any).lotId || (initialSelectedLot as any).lotHash}`
         : canConfirmEUDR
           ? `Lot sélectionné depuis la fiche de conformité: vous pouvez confirmer l'EUDR.`
@@ -57,7 +69,12 @@ export default function ConformitePage() {
     [findLotById, searchValue]
   )
   const selectedEudrRecord = useMemo(
-    () => (selectedLot ? getEUDRForLot((selectedLot as any).lotId || (selectedLot as any).lotHash) ?? null : null),
+    () =>
+      selectedLot
+        ? (getEUDRForLot(
+            (selectedLot as any).lotId || (selectedLot as any).lotHash
+          ) ?? null)
+        : null,
     [getEUDRForLot, selectedLot]
   )
 
@@ -72,8 +89,16 @@ export default function ConformitePage() {
       serverLots.filter((lot) => {
         const status = (lot as any).statut || (lot as any).status
         const lotId = (lot as any).lotId || (lot as any).lotHash
-        return ["TRANSFORME", "COLLECTE", "EN_TRANSIT", "transformed", "verified", "pending"].includes(status) &&
-               !hasLotAction(lotId, "verified", "controle")
+        return (
+          [
+            "TRANSFORME",
+            "COLLECTE",
+            "EN_TRANSIT",
+            "transformed",
+            "verified",
+            "pending",
+          ].includes(status) && !hasLotAction(lotId, "verified", "controle")
+        )
       }),
     [hasLotAction, serverLots]
   )
@@ -87,7 +112,8 @@ export default function ConformitePage() {
       value:
         exporterRecords.length > 0
           ? `${Math.round(
-              (exporterRecords.filter((record) => record.status === "confirmed").length /
+              (exporterRecords.filter((record) => record.status === "confirmed")
+                .length /
                 exporterRecords.length) *
                 100
             )}%`
@@ -113,7 +139,11 @@ export default function ConformitePage() {
     const lot = selectedLot
     setStatusMessage(
       lot
-        ? hasLotAction((lot as any).lotId || (lot as any).lotHash || (lot as any).id, "verified", "controle")
+        ? hasLotAction(
+            (lot as any).lotId || (lot as any).lotHash || (lot as any).id,
+            "verified",
+            "controle"
+          )
           ? `La conformité est déjà validée pour ${(lot as any).lotId || (lot as any).lotHash || (lot as any).id}`
           : canConfirmEUDR
             ? `Lot trouvé: le bouton de confirmation est maintenant disponible.`
@@ -138,7 +168,9 @@ export default function ConformitePage() {
     if (!lot || !user) return
 
     if (!canConfirmEUDR) {
-      setStatusMessage("La confirmation de conformité est réservée au rôle Exporter.")
+      setStatusMessage(
+        "La confirmation de conformité est réservée au rôle Exporter."
+      )
       return
     }
 
@@ -164,7 +196,9 @@ export default function ConformitePage() {
             rapportHash: `RAP-${shipmentId}-${index}`,
             metadata: {
               confirmedLotIds: lineageLotIds,
-              groupLotId: lot.isGroup ? (lot as any).lotHash || lot.lotId : undefined,
+              groupLotId: lot.isGroup
+                ? (lot as any).lotHash || lot.lotId
+                : undefined,
               eudrStatus: "conformante",
               esgScore: "98",
               countryRisk: "low",
@@ -174,7 +208,10 @@ export default function ConformitePage() {
         )
       )
     } catch (e) {
-      console.warn("[EUDR] Blockchain certification failed, recording locally:", e)
+      console.warn(
+        "[EUDR] Blockchain certification failed, recording locally:",
+        e
+      )
     }
 
     // Mise à jour store local
@@ -205,7 +242,9 @@ export default function ConformitePage() {
         metadata: {
           shipmentId,
           lotId,
-          groupLotId: lot.isGroup ? (lot as any).lotId || (lot as any).lotHash || (lot as any).id : undefined,
+          groupLotId: lot.isGroup
+            ? (lot as any).lotId || (lot as any).lotHash || (lot as any).id
+            : undefined,
           confirmedLotIds: lineageLotIds,
           eudrStatus: "conformante",
           documents: ["rapport-eudr.pdf", "liste-pieces-export.pdf"],
@@ -218,7 +257,9 @@ export default function ConformitePage() {
       updateLotSyncStatus(lotId, "synced")
     })
 
-    setStatusMessage(`✅ Conformité EUDR confirmée pour ${lotId} et enregistrée sur la blockchain.`)
+    setStatusMessage(
+      `✅ Conformité EUDR confirmée pour ${lotId} et enregistrée sur la blockchain.`
+    )
   }
 
   return (
@@ -290,7 +331,10 @@ export default function ConformitePage() {
                   <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
                     {readyLots.length > 0 ? (
                       readyLots.map((lot) => {
-                        const lotId = (lot as any).lotId || (lot as any).lotHash || (lot as any).id
+                        const lotId =
+                          (lot as any).lotId ||
+                          (lot as any).lotHash ||
+                          (lot as any).id
                         return (
                           <Button
                             type="button"
@@ -303,7 +347,11 @@ export default function ConformitePage() {
                               {lotId}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {lot.poidsKg} kg • {(lot as any).region || (lot as any).coopId || 'Région'} • {lot.espece}
+                              {lot.poidsKg} kg •{" "}
+                              {(lot as any).region ||
+                                (lot as any).coopId ||
+                                "Région"}{" "}
+                              • {lot.espece}
                             </p>
                             <p className="mt-2 text-xs font-medium text-primary">
                               Sélectionner pour confirmer
@@ -326,8 +374,8 @@ export default function ConformitePage() {
             <CardHeader>
               <CardTitle className="text-white">Règlement EUDR</CardTitle>
               <CardDescription className="text-white/70">
-                Vérifiez les coordonnées, l&apos;historique et la non-déforestation
-                avant de valider.
+                Vérifiez les coordonnées, l&apos;historique et la
+                non-déforestation avant de valider.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -365,11 +413,15 @@ export default function ConformitePage() {
               {selectedLot ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/75">
                   <p className="font-medium text-white">
-                    Lot sélectionné: {(selectedLot as any).lotId || (selectedLot as any).lotHash}
+                    Lot sélectionné:{" "}
+                    {(selectedLot as any).lotId || (selectedLot as any).lotHash}
                   </p>
                   <p className="mt-1">
-                    {selectedLot.poidsKg} kg • {(selectedLot as any).region || (selectedLot as any).coopId || 'Région'} •{" "}
-                    {selectedLot.espece}
+                    {selectedLot.poidsKg} kg •{" "}
+                    {(selectedLot as any).region ||
+                      (selectedLot as any).coopId ||
+                      "Région"}{" "}
+                    • {selectedLot.espece}
                   </p>
                 </div>
               ) : null}
@@ -379,41 +431,51 @@ export default function ConformitePage() {
                 onClick={handleConfirmEUDR}
                 disabled={
                   !selectedLot ||
-                  (selectedLot && hasLotAction(selectedLot.lotId, "verified", "controle")) ||
+                  (selectedLot &&
+                    hasLotAction(selectedLot.lotId, "verified", "controle")) ||
                   !canConfirmEUDR ||
                   isSubmitting
                 }
                 className="h-14 w-full rounded-2xl bg-amber-400 text-[#2f1713] hover:bg-amber-300"
               >
                 <BadgeCheck className="h-4 w-4" />
-                {isSubmitting ? "Enregistrement..." : "Confirmer la conformité EUDR"}
+                {isSubmitting
+                  ? "Enregistrement..."
+                  : "Confirmer la conformité EUDR"}
               </Button>
 
               {/* Étape 2 : Créer une expédition (disponible après confirmation EUDR) */}
-              {selectedLot && hasLotAction(selectedLot.lotId, "verified", "controle") && canConfirmEUDR && (
-                <CreateShipmentDialog
-                  lotHashes={getLotTraceabilityIds(selectedLot, findLotById)}
-                  isSubmitting={isSubmitting}
-                  onSubmit={(payload, onSuccess) => {
-                    createShipment(payload)
-                      .then(() => {
-                        onSuccess()
-                        setStatusMessage(`✅ Expédition enregistrée sur la blockchain pour ${(selectedLot as any).lotId || (selectedLot as any).lotHash}.`)
-                      })
-                      .catch((e) => setStatusMessage(`❌ Erreur expédition: ${e.message}`))
-                  }}
-                  trigger={
-                    <Button className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20">
-                      <Truck className="h-4 w-4" />
-                      Créer une Expédition
-                    </Button>
-                  }
-                />
-              )}
+              {selectedLot &&
+                hasLotAction(selectedLot.lotId, "verified", "controle") &&
+                canConfirmEUDR && (
+                  <CreateShipmentDialog
+                    lotHashes={getLotTraceabilityIds(selectedLot, findLotById)}
+                    isSubmitting={isSubmitting}
+                    onSubmit={(payload, onSuccess) => {
+                      createShipment(payload)
+                        .then(() => {
+                          onSuccess()
+                          setStatusMessage(
+                            `✅ Expédition enregistrée sur la blockchain pour ${(selectedLot as any).lotId || (selectedLot as any).lotHash}.`
+                          )
+                        })
+                        .catch((e) =>
+                          setStatusMessage(`❌ Erreur expédition: ${e.message}`)
+                        )
+                    }}
+                    trigger={
+                      <Button className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20">
+                        <Truck className="h-4 w-4" />
+                        Créer une Expédition
+                      </Button>
+                    }
+                  />
+                )}
 
               {!canConfirmEUDR ? (
                 <p className="text-xs text-white/65">
-                  La vérification de conformité est accessible uniquement au rôle Exporter.
+                  La vérification de conformité est accessible uniquement au
+                  rôle Exporter.
                 </p>
               ) : null}
             </CardContent>

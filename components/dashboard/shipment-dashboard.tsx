@@ -14,13 +14,14 @@ import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { useUser } from "@/context/useUser"
 import { getLotLineageIds } from "@/lib/lot-lineage"
+import { normalizeRole } from "@/lib/navigation/role-config"
 
 export function ShipmentDashboard() {
   const { activeRole } = useUser()
   const searchParams = useSearchParams()
   const section = searchParams.get("section")
-
-  if (activeRole === "Exporter" || activeRole === "Admin") {
+  const normalizedRole = normalizeRole(activeRole || "")
+  if (normalizedRole === "Exporter" || normalizedRole === "Admin") {
     return <ExporterDashboard section={section} />
   }
 
