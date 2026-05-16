@@ -82,32 +82,39 @@ export default function GestionLotsPage() {
     () => new Set(allGroups.flatMap((group: any) => group.lotIds as string[])),
     [allGroups]
   )
+
   const coopLots = useMemo(
     () => allLots.filter((lot: any) => {
       const lotId = lot.lotId || lot.lotHash || lot.id
       const isNotGroup = !lot.isGroup
       const isNotGrouped = !groupedLotIds.has(lotId)
 
-      // Correspondance par coopId blockchain (format COOPERATIVE-xxx)
-      const matchesCoopId = coopBlockchainId && lot.coopId === coopBlockchainId
-      // Correspondance par coopName (store local)
+      // Identifiant coop du lot (gère les deux formats possibles)
+      const lotCoopId = (lot.coopId || lot.coop_id || "").toString()
+      const userCoopId = coopBlockchainId.toString()
+
+      // Correspondance par ID (flexible pour gérer les préfixes comme COOPERATIVE-)
+      const matchesCoopId = userCoopId && (
+        lotCoopId === userCoopId || 
+        lotCoopId.includes(userCoopId) || 
+        userCoopId.includes(lotCoopId)
+      )
+
+      // Correspondance par nom (store local)
       const coopName = lot.coopName || lot.coop_name
-      const matchesCoopName = coopName && (coopName === user?.nomAffiche || coopName === user?.orgName)
+      const matchesCoopName = coopName && (
+        coopName === user?.nomAffiche || 
+        coopName === user?.orgName
+      )
 
-      // Debug
-      if (process.env.NODE_ENV === 'development') {
-        if (!matchesCoopId && !matchesCoopName) {
-          // Pas de match silencieux
-        }
-      }
-
-      // Si aucun ID coop défini, afficher tous les lots (mode développement)
-      if (!coopBlockchainId) return isNotGroup && isNotGrouped
+      // Si aucun ID coop défini, afficher tout en mode debug/dev
+      if (!userCoopId) return isNotGroup && isNotGrouped
 
       return (matchesCoopId || matchesCoopName) && isNotGroup && isNotGrouped
     }),
     [groupedLotIds, allLots, user, coopBlockchainId]
   )
+
   const selectedLot = selectedLotId
     ? allLots.find((lot: any) => (lot.lotId || lot.lotHash || lot.id) === selectedLotId) ?? null
     : null
