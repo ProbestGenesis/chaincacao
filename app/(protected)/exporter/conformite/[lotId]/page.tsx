@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle2, FileCheck, ShieldCheck, Download, FileText, BadgeCheck } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileCheck, ShieldCheck, Download, FileText, BadgeCheck, Truck } from "lucide-react"
 import { useState, useMemo } from "react"
+import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
 
 import { useUser } from "@/context/useUser"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +23,7 @@ export default function ConformiteLotPage() {
   const router = useRouter()
   const { user, activeRole } = useUser()
   const { serverLots, isLoading: isLoadingLots } = useLots()
-  const { createCertification, isSubmitting } = useTraceability()
+  const { createCertification, createShipment, isSubmitting } = useTraceability()
   const { addAction, hasLotAction } = useLotActionsStore()
   const { confirmEUDR } = useEUDRStore()
   
@@ -295,6 +296,45 @@ export default function ConformiteLotPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card className="rounded-3xl border border-white/10 shadow-sm bg-[#2f1713] text-white">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Truck className="h-5 w-5 text-amber-400" />
+                Expédition
+              </CardTitle>
+              <CardDescription className="text-white/60">
+                Préparez et validez l'exportation internationale de ce lot.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {normalizeRole(activeRole || "") === "Exporter" ? (
+                <CreateShipmentDialog
+                  lotHashes={lineageLotIds.length > 0 ? lineageLotIds : [lotId]}
+                  isSubmitting={isSubmitting}
+                  onSubmit={(payload, onSuccess) => {
+                    createShipment(payload)
+                      .then(() => {
+                        onSuccess()
+                        setStatusMessage("Expédition enregistrée avec succès sur la blockchain.")
+                        setShowSuccess(true)
+                      })
+                      .catch((e) => setStatusMessage(`Erreur expédition: ${e.message}`))
+                  }}
+                  trigger={
+                    <Button className="w-full h-14 rounded-2xl bg-amber-400 text-[#2f1713] hover:bg-amber-300 font-bold text-lg gap-3">
+                      <Truck className="h-6 w-6" />
+                      Créer une Expédition
+                    </Button>
+                  }
+                />
+              ) : (
+                <p className="text-[10px] text-center text-white/40 italic">
+                  Action réservée au rôle Exporter.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="rounded-3xl border-none shadow-sm bg-card/50">
             <CardHeader>

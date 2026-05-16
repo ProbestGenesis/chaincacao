@@ -97,7 +97,7 @@ export default function ConformitePage() {
             "transformed",
             "verified",
             "pending",
-          ].includes(status) && !hasLotAction(lotId, "verified", "controle")
+          ].includes(status)
         )
       }),
     [hasLotAction, serverLots]
@@ -250,7 +250,7 @@ export default function ConformitePage() {
               <div className="grid gap-3">
                 <div className="rounded-2xl border bg-muted/20 p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Lots prêts à vérifier</p>
+                    <p className="text-sm font-medium">Lots disponibles (Export)</p>
                     <Badge variant="secondary">{readyLots.length}</Badge>
                   </div>
                   <div className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
@@ -279,7 +279,7 @@ export default function ConformitePage() {
                               • {lot.espece}
                             </p>
                             <p className="mt-2 text-xs font-medium text-primary">
-                              Sélectionner pour vérifier
+                              Sélectionner le lot
                             </p>
                           </Button>
                         )
@@ -369,10 +369,8 @@ export default function ConformitePage() {
                   : "Vérifier la conformité EUDR"}
               </Button>
 
-              {/* Étape 2 : Créer une expédition (disponible après vérification EUDR) */}
-              {selectedLot &&
-                hasLotAction(selectedLot.lotId, "verified", "controle") &&
-                canConfirmEUDR && (
+              {/* Étape 2 : Créer une expédition */}
+              {selectedLot && canConfirmEUDR && (
                   <CreateShipmentDialog
                     lotHashes={getLotTraceabilityIds(selectedLot, findLotById)}
                     isSubmitting={isSubmitting}

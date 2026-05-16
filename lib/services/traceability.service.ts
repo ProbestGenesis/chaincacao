@@ -69,12 +69,12 @@ export const traceabilityService = {
     
   createShipment: (payload: ShipmentPayload) => {
     const formData = new FormData()
-    formData.append("shipmentHash", payload.shipmentHash)
-    formData.append("lotHashes", JSON.stringify(payload.lotHashes))
-    formData.append("exportateurId", payload.exportateurId)
+    formData.append("shipment_hash", payload.shipmentHash)
+    formData.append("lot_hashes", JSON.stringify(payload.lotHashes))
+    formData.append("exportateur_id", payload.exportateurId)
     formData.append("destination", payload.destination)
-    formData.append("dateDepartPrevue", payload.dateDepartPrevue)
-    formData.append("dateArriveePrevue", payload.dateArriveePrevue)
+    formData.append("date_depart_prevue", payload.dateDepartPrevue)
+    formData.append("date_arrivee_prevue", payload.dateArriveePrevue)
     formData.append("file", payload.file)
     return api.post<any>("/api/v1/traceability/shipments", formData, { isFormData: true })
   },
