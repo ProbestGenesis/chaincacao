@@ -97,7 +97,9 @@ export default function GestionLotsPage() {
       const matchesCoopId = !userCoopId || (
         lotCoopId === userCoopId || 
         lotCoopId.includes(userCoopId) || 
-        userCoopId.includes(lotCoopId)
+        userCoopId.includes(lotCoopId) ||
+        // Cas extrême: on compare juste les 8 derniers caractères (souvent l'ID court)
+        (lotCoopId.length > 8 && userCoopId.length > 8 && lotCoopId.slice(-8) === userCoopId.slice(-8))
       )
 
       // Correspondance par nom (store local)
@@ -105,11 +107,12 @@ export default function GestionLotsPage() {
       const matchesCoopName = !user?.nomAffiche || (
         coopName === user?.nomAffiche || 
         coopName === user?.orgName ||
-        coopName.includes(user?.nomAffiche || "---")
+        (coopName.length > 0 && user?.nomAffiche?.includes(coopName)) ||
+        (user?.nomAffiche && coopName.includes(user.nomAffiche))
       )
 
-      // DEBUG: Décommentez pour voir pourquoi un lot est filtré dans la console
-      console.log(`[Filter Debug] Lot ${lotId}: matchesId=${matchesCoopId}, isNotGroup=${isNotGroup}, isNotGrouped=${isNotGrouped}, status=${lot.statut}`)
+      // DEBUG: Affichage des IDs pour comprendre le décalage
+      console.log(`[Filter Debug] Lot ${lotId}: userCoopId="${userCoopId}", lotCoopId="${lotCoopId}", matchesId=${matchesCoopId}, matchesName=${matchesCoopName}`)
 
       return (matchesCoopId || matchesCoopName) && isNotGroup && isNotGrouped
     }),
