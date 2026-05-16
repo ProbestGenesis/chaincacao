@@ -28,6 +28,8 @@ import { useTraceability } from "@/hooks/useTraceability"
 interface TransformationDialogProps {
   lotHashes: string[]
   onSuccess?: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const PROCESS_TYPES = [
@@ -37,8 +39,12 @@ const PROCESS_TYPES = [
   { value: "TORREFACTION", label: "Torréfaction" },
 ]
 
-export function TransformationDialog({ lotHashes, onSuccess }: TransformationDialogProps) {
-  const [open, setOpen] = useState(false)
+export function TransformationDialog({ lotHashes, onSuccess, open: controlledOpen, onOpenChange: setControlledOpen }: TransformationDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled && setControlledOpen ? setControlledOpen : setInternalOpen
+
   const [file, setFile] = useState<File | null>(null)
   const { createTransformation, isSubmitting } = useTraceability()
   const { register, handleSubmit, setValue, watch, reset } = useForm<{ typeProcessus: string }>()

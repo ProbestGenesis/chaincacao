@@ -182,6 +182,7 @@ export function useTraceability() {
       submitPerLotHash(payload, traceabilityService.createTransfer),
     onSuccess: (response, variables) => {
       toast.success("Transfert enregistré avec succès sur la blockchain")
+      queryClient.invalidateQueries({ queryKey: [queryKeys.lots] })
       variables.lotHashes.forEach((lotHash) => {
         queryClient.invalidateQueries({ queryKey: [queryKeys.history(lotHash)] })
       })
@@ -196,6 +197,7 @@ export function useTraceability() {
       submitPerLotHash(payload, traceabilityService.createTransformation),
     onSuccess: (response, variables) => {
       toast.success("Transformation enregistrée avec succès sur la blockchain")
+      queryClient.invalidateQueries({ queryKey: [queryKeys.lots] })
       variables.lotHashes.forEach((lotHash) => {
         queryClient.invalidateQueries({ queryKey: [queryKeys.history(lotHash)] })
       })
@@ -210,6 +212,7 @@ export function useTraceability() {
       submitPerLotHash(payload, traceabilityService.createShipment),
     onSuccess: (response, variables) => {
       toast.success("Expédition enregistrée avec succès sur la blockchain")
+      queryClient.invalidateQueries({ queryKey: [queryKeys.lots] })
       variables.lotHashes.forEach((lotHash) => {
         queryClient.invalidateQueries({ queryKey: [queryKeys.history(lotHash)] })
       })
@@ -223,6 +226,7 @@ export function useTraceability() {
     mutationFn: (payload: CertificationPayload) => traceabilityService.createCertification(payload),
     onSuccess: (response, variables) => {
       toast.success("Certification enregistrée avec succès sur la blockchain")
+      queryClient.invalidateQueries({ queryKey: [queryKeys.lots] })
       queryClient.invalidateQueries({ queryKey: [queryKeys.history(variables.refHash)] })
     },
     onError: (err: any) => {

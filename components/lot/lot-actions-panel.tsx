@@ -17,6 +17,7 @@ import { Lock, CheckCircle2, Truck, PackageOpen, ShieldCheck, FileCheck2, Clipbo
 
 import { TransferRoleDialog } from "./transfer-role-dialog"
 import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
+import { TransformationDialog } from "@/components/traceability/transformation-dialog"
 import { useState } from "react"
 import { getLotTraceabilityIds } from "@/lib/lot-lineage"
 import { useLotActionsStore } from "@/store/lot-actions"
@@ -80,7 +81,14 @@ const roleActions: Partial<Record<UserRole, ActionTemplate[]>> = {
       status: "transferred",
       description: "Réception confirmée par l’atelier après transfert de la coopérative.",
     },
- 
+    {
+      label: "Enregistrer une transformation",
+      icon: PackageOpen,
+      action: "transformed",
+      phase: "transformation",
+      status: "transformed",
+      description: "Enregistrement du processus industriel et du rapport de transformation.",
+    },
     {
       label: "Transférer à l'exportateur",
       icon: ArrowRightLeft,
@@ -173,6 +181,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   const can = usePermission()
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false)
+  const [transformationDialogOpen, setTransformationDialogOpen] = useState(false)
   const {
     createTransfer,
     createTransformation,
@@ -268,14 +277,19 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
         return [customizeForGroup(transformerActions[0])]
       }
 
-      // 2. Si le lot est déjà réceptionné, proposer le transfert à l'exportateur
+      // 2. Si le lot est réceptionné, proposer la transformation
       if (status === "transferred" && transformerActions[1]) {
         return [customizeForGroup(transformerActions[1])]
       }
       
-      // Si le lot est déjà transformé/vérifié par erreur, proposer quand même le transfert
-      if (["transformed", "verified"].includes(status || "") && transformerActions[1]) {
-        return [customizeForGroup(transformerActions[1])]
+      // 3. Si le lot est transformé, proposer le transfert à l'exportateur
+      if (status === "transformed" && transformerActions[2]) {
+        return [customizeForGroup(transformerActions[2])]
+      }
+      
+      // Si le lot est déjà vérifié par erreur, proposer quand même le transfert
+      if (["verified"].includes(status || "") && transformerActions[2]) {
+        return [customizeForGroup(transformerActions[2])]
       }
     }
 
@@ -290,13 +304,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
           break
         
         case "transformed":
-          const transformPayload: TransformationPayload = {
-            transformationHash: `TSF-${Date.now()}`,
-            lotHashes: traceabilityLotIds,
-            typeProcessus: "Fermentation & Séchage",
-            file: new File([""], "proof.pdf", { type: "application/pdf" })
-          }
-          await createTransformation(transformPayload)
+          setTransformationDialogOpen(true)
           break
 
         case "exported":
@@ -398,6 +406,14 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
           } catch (e) {
             console.error("Shipment error:", e)
           }
+        }}
+      />
+      <TransformationDialog
+        lotHashes={traceabilityLotIds}
+        open={transformationDialogOpen}
+        onOpenChange={setTransformationDialogOpen}
+        onSuccess={() => {
+          setTransformationDialogOpen(false)
         }}
       />
     </Card>
