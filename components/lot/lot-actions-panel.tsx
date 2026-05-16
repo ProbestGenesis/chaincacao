@@ -208,21 +208,22 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   })()
 
   const canAct = (): boolean => {
+    const status = lot.statut?.toLowerCase()
     switch (normalizedRole) {
       case "Agriculteur":
-        return lot.statut === "draft" || lot.statut === "pending"
+        return status === "draft" || status === "pending" || status === "collecte"
       case "CoopManager":
-        return lot.statut === "draft" || lot.statut === "pending" || lot.statut === "transferred"
+        return status === "draft" || status === "pending" || status === "transferred" || status === "collecte" || status === "en_transit"
       case "Transformer":
-        return lot.statut === "transferred" || lot.statut === "pending" || lot.statut === "transformed"
+        return ["transferred", "pending", "transformed", "collecte", "en_transit", "transforme", "verified"].includes(status || "")
       case "Exporter":
-        return lot.statut === "transformed"
+        return ["transformed", "transforme", "verified", "exported", "exporte"].includes(status || "")
       case "CarrierUser":
-        return lot.statut === "transferred"
+        return status === "transferred" || status === "en_transit" || status === "collecte"
       case "Verifier":
         return true
       case "Importer":
-        return lot.statut === "exported"
+        return status === "exported" || status === "exporte"
       case "MinistryAnalyst":
       case "Admin":
         return true
@@ -271,26 +272,26 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
     if (normalizedRole === "Transformer") {
       const transformerActions = roleActions.Transformer || []
       const status = lot.statut?.toLowerCase()
+      const actions: ActionTemplate[] = []
 
-      // 1. Si le lot est en attente (récolté ou transféré par coop), proposer la réception
+      // 1. Réception
       if ((status === "pending" || status === "collecte" || status === "en_transit") && transformerActions[0]) {
-        return [customizeForGroup(transformerActions[0])]
+        actions.push(transformerActions[0])
       }
 
-      // 2. Si le lot est réceptionné, proposer la transformation
+      // 2. Transformation (si réceptionné)
       if (status === "transferred" && transformerActions[1]) {
-        return [customizeForGroup(transformerActions[1])]
+        actions.push(transformerActions[1])
+        // On permet aussi le transfert direct si besoin
+        actions.push(transformerActions[2])
       }
       
-      // 3. Si le lot est transformé, proposer le transfert à l'exportateur
-      if (status === "transformed" && transformerActions[2]) {
-        return [customizeForGroup(transformerActions[2])]
+      // 3. Transfert à l'exportateur (si transformé ou vérifié)
+      if (["transformed", "transforme", "verified"].includes(status || "") && transformerActions[2]) {
+        actions.push(transformerActions[2])
       }
       
-      // Si le lot est déjà vérifié par erreur, proposer quand même le transfert
-      if (["verified"].includes(status || "") && transformerActions[2]) {
-        return [customizeForGroup(transformerActions[2])]
-      }
+      return actions.filter(Boolean).map(customizeForGroup)
     }
 
     return (roleActions[normalizedRole] ?? []).map(customizeForGroup)
