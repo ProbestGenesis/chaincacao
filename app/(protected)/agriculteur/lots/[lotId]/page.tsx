@@ -60,8 +60,10 @@ export default function LotDetailPage() {
   // Debug log pour voir la structure reçue
   if (lot) console.log("Lot Detail Data:", lot)
 
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+  const blockchainHash = lot?.lotHash || lot?.lotId || lotId
   const qrValue = lot 
-    ? `https://chaincacao-production-363c.up.railway.app/agriculteur/lots/${lot.lotId || lot.lotHash || lotId}` 
+    ? `${baseUrl}/inventory/${blockchainHash}` 
     : ""
   const timeline = lot ? getLotTimeline(lot.lotId || lot.lotHash || lotId, getLotHistoryIds(lot, groups)) : []
 

@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import type { Lot } from "@/types/types"
 import { translateStatus } from "@/lib/status-helper"
-import { getSourceLotIds } from "@/lib/lot-lineage"
+import { getLotTraceabilityIds, getSourceLotIds } from "@/lib/lot-lineage"
 import { useTraceability } from "@/hooks/useTraceability"
 
 const averageCoordinates = (lots: Lot[]) => {
@@ -453,7 +453,7 @@ export default function GestionLotsPage() {
                               Ouvrir le groupement
                             </Button>
                             <TransferLotDialog
-                              lotHashes={[groupLot.lotId]}
+                              lotHashes={getLotTraceabilityIds(groupLot)}
                               isSubmitting={isTransferring}
                               onSubmit={(payload, onSuccess) => {
                                 createTransfer(payload)
@@ -482,7 +482,7 @@ export default function GestionLotsPage() {
       </Card>
 
       <LotDetailModal
-        lot={(selectedLotId ? allLots.find((l: any) => (l.lotId || l.lotHash || l.id) === selectedLotId) ?? null : null) as any}
+        lot={(selectedLotId ? allLots.find((l: any) => (l.lotId || l.lotHash || l.id) === selectedLotId) ?? getLotById(selectedLotId) ?? null : null) as any}
         open={lotDetailOpen}
         onOpenChange={setLotDetailOpen}
       />

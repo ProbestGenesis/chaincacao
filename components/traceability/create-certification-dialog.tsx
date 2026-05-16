@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import {
@@ -15,22 +15,21 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
-import { Controller } from "react-hook-form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTraceability } from "@/hooks/useTraceability"
 import { ShieldCheck } from "lucide-react"
 
 const certificationSchema = z.object({
-  lot_hash: z.string().min(1, "L'ID du lot est requis"),
-  certifier_id: z.string().min(1, "L'ID du certificateur est requis"),
-  type: z.string().min(1, "Le type de certification est requis"),
-  ref_hash: z.string().min(1, "La référence est requise"),
+  certHash: z.string().min(1, "L'ID du certificat est requis"),
+  refHash: z.string().min(1, "L'ID de l'actif (lot/shipment) est requis"),
+  verificateurId: z.string().min(1, "L'ID du vérificateur est requis"),
+  statut: z.string().min(1, "Le statut est requis"),
+  rapportHash: z.string().min(1, "Le hash du rapport est requis"),
 })
 
 export function CreateCertificationDialog() {
@@ -40,10 +39,11 @@ export function CreateCertificationDialog() {
   const form = useForm<z.infer<typeof certificationSchema>>({
     resolver: zodResolver(certificationSchema),
     defaultValues: {
-      lot_hash: "",
-      certifier_id: "",
-      type: "EUDR_COMPLIANCE",
-      ref_hash: "",
+      certHash: `CERT-${Date.now()}`,
+      refHash: "",
+      verificateurId: "",
+      statut: "CONFORME",
+      rapportHash: "",
     },
   })
 
@@ -69,61 +69,70 @@ export function CreateCertificationDialog() {
         <DialogHeader>
           <DialogTitle>Nouvelle Certification</DialogTitle>
           <DialogDescription>
-            Enregistrez une preuve de certification sur la blockchain pour un lot spécifique.
+            Enregistrez une preuve de certification sur la blockchain pour un lot ou une expédition.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="lot_hash">ID du Lot (Hash)</FieldLabel>
+              <FieldLabel htmlFor="refHash">ID de l'Actif (Lot/Shipment)</FieldLabel>
               <Input 
-                id="lot_hash"
-                placeholder="Ex: 0x..." 
-                {...form.register("lot_hash")} 
+                id="refHash"
+                placeholder="Ex: LOT-..." 
+                {...form.register("refHash")} 
               />
-              <FieldError errors={[form.formState.errors.lot_hash]} />
+              <FieldError errors={[form.formState.errors.refHash]} />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="certifier_id">ID Certificateur</FieldLabel>
+              <FieldLabel htmlFor="verificateurId">ID Vérificateur</FieldLabel>
               <Input 
-                id="certifier_id"
+                id="verificateurId"
                 placeholder="Ex: CERT-001" 
-                {...form.register("certifier_id")} 
+                {...form.register("verificateurId")} 
               />
-              <FieldError errors={[form.formState.errors.certifier_id]} />
+              <FieldError errors={[form.formState.errors.verificateurId]} />
             </Field>
 
             <Field>
-              <FieldLabel>Type de Certification</FieldLabel>
+              <FieldLabel>Statut</FieldLabel>
               <Controller
                 control={form.control}
-                name="type"
+                name="statut"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un type" />
+                      <SelectValue placeholder="Sélectionnez un statut" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="EUDR_COMPLIANCE">Conformité EUDR</SelectItem>
-                      <SelectItem value="RAINFOREST_ALLIANCE">Rainforest Alliance</SelectItem>
-                      <SelectItem value="UTZ">UTZ</SelectItem>
-                      <SelectItem value="BIO">Biologique</SelectItem>
+                      <SelectItem value="CONFORME">Conforme</SelectItem>
+                      <SelectItem value="NON_CONFORME">Non Conforme</SelectItem>
+                      <SelectItem value="EUDR_OK">EUDR Validé</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               />
-              <FieldError errors={[form.formState.errors.type]} />
+              <FieldError errors={[form.formState.errors.statut]} />
             </Field>
 
             <Field>
-              <FieldLabel htmlFor="ref_hash">Référence (Cert Hash)</FieldLabel>
+              <FieldLabel htmlFor="certHash">ID Certificat (Hash)</FieldLabel>
               <Input 
-                id="ref_hash"
-                placeholder="Ex: REF-12345" 
-                {...form.register("ref_hash")} 
+                id="certHash"
+                placeholder="Ex: CERT-..." 
+                {...form.register("certHash")} 
               />
-              <FieldError errors={[form.formState.errors.ref_hash]} />
+              <FieldError errors={[form.formState.errors.certHash]} />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="rapportHash">Hash du Rapport</FieldLabel>
+              <Input 
+                id="rapportHash"
+                placeholder="Ex: RAP-..." 
+                {...form.register("rapportHash")} 
+              />
+              <FieldError errors={[form.formState.errors.rapportHash]} />
             </Field>
           </FieldGroup>
           <Button type="submit" className="w-full" disabled={isSubmitting}>

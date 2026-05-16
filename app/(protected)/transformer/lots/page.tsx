@@ -8,7 +8,7 @@ import { RoleGuard } from "@/components/layout/role-guard"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useLotActionsStore } from "@/store/lot-actions"
-import { useLotsStore } from "@/store/lots"
+import { useLots } from "@/hooks/useLots"
 import { useUser } from "@/context/useUser"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,7 @@ export default function TransformerLotsPage() {
 
 function TransformerLotsContent() {
   const { user } = useUser()
-  const { lots } = useLotsStore()
+  const { serverLots: lots, isLoading } = useLots()
   const { getLotTimeline } = useLotActionsStore()
   const groups = useCooperativeStore((state) => state.groups)
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
@@ -36,10 +36,18 @@ function TransformerLotsContent() {
   const transformerLots = useMemo(
     () =>
       lots.filter((lot: any) =>
-        ["pending", "transferred", "verified", "transformed", "exported", "EN_TRANSIT", "TRANSFORME", "EXPORTE"].includes(lot.statut)
+        ["pending", "transferred", "verified", "transformed", "exported", "en_transit", "transforme", "exporte", "collecte"].includes(lot.statut?.toLowerCase())
       ),
     [lots]
   )
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center text-sm text-muted-foreground animate-pulse">
+        Chargement des lots...
+      </div>
+    )
+  }
 
   const filteredLots = transformerLots.filter(
     (lot: any) =>
@@ -48,6 +56,7 @@ function TransformerLotsContent() {
       (lot.region || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lot.coopName || lot.coopId || lot.coop_name || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
+
   const selectedLot = selectedLotId
     ? lots.find((lot: any) => (lot.lotId || lot.lotHash || lot.id) === selectedLotId) ?? null
     : null
@@ -60,12 +69,15 @@ function TransformerLotsContent() {
     },
     {
       label: "À réceptionner",
-      value: transformerLots.filter((lot) => lot.statut === "pending").length,
+      value: transformerLots.filter((lot) => 
+        lot.statut?.toLowerCase() === "pending" || 
+        lot.statut?.toLowerCase() === "collecte"
+      ).length,
       note: "Entrées en attente",
     },
     {
       label: "À transformer",
-      value: transformerLots.filter((lot) => lot.statut === "transferred").length,
+      value: transformerLots.filter((lot) => lot.statut?.toLowerCase() === "transferred").length,
       note: "Déjà transférés",
     },
     {
@@ -84,28 +96,32 @@ function TransformerLotsContent() {
       title: "À réceptionner",
       subtitle: "Lots en attente de prise en charge",
       color: "bg-yellow-100 text-yellow-800",
-      lots: filteredLots.filter((lot: any) => lot.statut === "pending" || lot.statut === "EN_TRANSIT"),
+      lots: filteredLots.filter((lot: any) => 
+        lot.statut?.toLowerCase() === "pending" || 
+        lot.statut?.toLowerCase() === "en_transit" || 
+        lot.statut?.toLowerCase() === "collecte"
+      ),
     },
     {
       key: "transferred",
       title: "À transformer",
       subtitle: "Réception confirmée",
       color: "bg-blue-100 text-blue-800",
-      lots: filteredLots.filter((lot: any) => lot.statut === "transferred"),
+      lots: filteredLots.filter((lot: any) => lot.statut?.toLowerCase() === "transferred"),
     },
     {
       key: "verified",
       title: "Contrôle qualité",
       subtitle: "Validation intermédiaire",
       color: "bg-violet-100 text-violet-800",
-      lots: filteredLots.filter((lot: any) => lot.statut === "verified"),
+      lots: filteredLots.filter((lot: any) => lot.statut?.toLowerCase() === "verified"),
     },
     {
       key: "transformed",
       title: "Transformés",
       subtitle: "Prêts pour contrôle final",
       color: "bg-orange-100 text-orange-800",
-      lots: filteredLots.filter((lot: any) => lot.statut === "transformed" || lot.statut === "exported" || lot.statut === "TRANSFORME" || lot.statut === "EXPORTE"),
+      lots: filteredLots.filter((lot: any) => ["transformed", "exported", "transforme", "exporte"].includes(lot.statut?.toLowerCase())),
     },
   ]
 

@@ -211,6 +211,19 @@ export function LotWorkflowTimeline({
                           <p className="text-sm text-muted-foreground">
                             {action.description}
                           </p>
+                          {action.phase === "transfert" && Boolean(action.metadata?.expediteurId || action.metadata?.destinataireId) && (
+                            <div className="mt-2 flex items-center gap-3 rounded-xl bg-primary/5 p-2.5 text-[10px] border border-primary/10 max-w-md">
+                              <div className="flex-1">
+                                <p className="text-muted-foreground uppercase tracking-tight font-bold mb-0.5">Émetteur</p>
+                                <p className="font-semibold truncate">{String(action.actorName || action.metadata?.expediteurName || action.metadata?.expediteurId || "—")}</p>
+                              </div>
+                              <ArrowRight className="size-3 text-primary/40" />
+                              <div className="flex-1 text-right">
+                                <p className="text-muted-foreground uppercase tracking-tight font-bold mb-0.5">Récepteur</p>
+                                <p className="font-semibold truncate text-primary">{String(action.metadata?.destinataireName || action.metadata?.destinataireId || "—")}</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <Badge
                           className={

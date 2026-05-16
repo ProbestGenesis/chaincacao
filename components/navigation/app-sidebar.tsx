@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/sidebar"
 import { LogOut, Settings } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
+import logo from "@/assets/smartKakaoLogo.png"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -28,10 +30,16 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-bold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            CC
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg">
+            <Image 
+              src={logo} 
+              alt="SmartKakao Logo" 
+              width={40} 
+              height={40} 
+              className="object-contain"
+            />
           </div>
-          <span className="text-sm">ChainCacao</span>
+          <span className="text-sm font-bold tracking-tight">SmartKakao</span>
         </Link>
       </SidebarHeader>
 

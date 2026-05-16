@@ -18,7 +18,6 @@ const allowedRoles = [
   "CoopManager",
   "Transformer",
   "Exporter",
-  "CarrierUser",
   "Verifier",
   "Importer",
   "MinistryAnalyst",

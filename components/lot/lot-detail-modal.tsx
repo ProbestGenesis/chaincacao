@@ -26,8 +26,8 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useUser } from "@/context/useUser"
-import { useLotEUDR, useLotHistory } from "@/hooks/useTraceability"
-import { getLotLineageIds } from "@/lib/lot-lineage"
+import { useLotEUDR, useLotHistories } from "@/hooks/useTraceability"
+import { getLotTraceabilityIds } from "@/lib/lot-lineage"
 import { translateStatus } from "@/lib/status-helper"
 import type { LotAction } from "@/store/lot-actions"
 import type { Lot } from "@/types/types"
@@ -55,7 +55,11 @@ export function LotDetailModal({
   const { Canvas } = useQRCode()
   // Priorité au hash blockchain (lotHash) pour les requêtes API, fallback sur lotId local
   const blockchainHash = (lot as any)?.lotHash || lot?.lotId || ""
-  const { data: serverTimeline } = useLotHistory(blockchainHash)
+  const lineageLotIds = lot ? getLotTraceabilityIds(lot) : []
+  const historyAssetHashes = Array.from(
+    new Set([blockchainHash, ...lineageLotIds].filter(Boolean))
+  )
+  const { data: serverTimeline } = useLotHistories(historyAssetHashes)
   const { data: serverEUDR, isLoading: isLoadingEUDR } = useLotEUDR(
     blockchainHash
   )
@@ -64,28 +68,41 @@ export function LotDetailModal({
 
   if (!lot) return null
 
-  const timeline: LotAction[] = (serverTimeline || []).map((entry: any) => ({
-    actionId: entry.txId,
-    lotId: lot.lotId || (lot as any).lotHash || (lot as any).id,
-    actor: (entry?.value?.actor || entry?.value?.org || "Inconnu") as any,
-    actorName:
-      entry?.value?.actorName || entry?.value?.user || "Acteur Blockchain",
-    actorId: entry?.value?.actorId || "0x...",
-    action: (entry?.value?.action || "validated") as any,
-    phase: (entry?.value?.phase || "transfert") as any,
-    status: (entry?.value?.statut || "pending") as any,
-    description:
-      entry?.value?.description || "Action enregistrée sur la blockchain",
-    timestamp: entry.timestamp
-      ? new Date(entry.timestamp).getTime()
-      : Date.now(),
-    chainStatus: "recorded" as const,
-    chainHash: entry.txId,
-    metadata: entry?.value?.metadata || {},
-  }))
+  const timeline: LotAction[] = Array.from(
+    new Map(
+      (serverTimeline || []).map((entry: any) => {
+        const assetHash = entry.assetHash || lot.lotId || (lot as any).lotHash || (lot as any).id
+        const metadata =
+          entry?.value && typeof entry.value === "object"
+            ? entry.value
+            : {}
+        const action: LotAction = {
+          actionId: entry.txId,
+          lotId: assetHash,
+          actor: (entry?.value?.actor || entry?.value?.org || "Inconnu") as any,
+          actorName:
+            entry?.value?.actorName || entry?.value?.user || "Acteur Blockchain",
+          actorId: entry?.value?.actorId || "0x...",
+          action: (entry?.value?.action || "validated") as any,
+          phase: (entry?.value?.phase || "transfert") as any,
+          status: (entry?.value?.statut || "pending") as any,
+          description:
+            entry?.value?.description || "Action enregistrée sur la blockchain",
+          timestamp: entry.timestamp
+            ? new Date(entry.timestamp).getTime()
+            : Date.now(),
+          chainStatus: "recorded" as const,
+          chainHash: entry.txId,
+          metadata: { ...metadata, assetHash },
+        }
+
+        return [entry.txId || `${assetHash}-${entry.timestamp}`, action] as const
+      })
+    ).values()
+  ).sort((a, b) => a.timestamp - b.timestamp)
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
-  const qrValue = `${baseUrl}/inventory/${lot.lotId}`
+  const qrValue = `${baseUrl}/inventory/${blockchainHash}`
   const metaActions = timeline.flatMap((action) => {
     const metadata = action.metadata
     if (!metadata || typeof metadata !== "object") return []
@@ -143,8 +160,6 @@ export function LotDetailModal({
     new Set([...(lot.sourceLotIds ?? []), ...sourceLots])
   )
   const isGroupLot = Boolean(lot.isGroup || declaredSourceLots.length > 0)
-  const lineageLotIds = getLotLineageIds(lot)
-
   const hasConfirmedEUDR = serverEUDR?.success
   const canAccessCompliance = activeRole === "Exporter"
   const showComplianceTab =

@@ -8,12 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { useAuditQueryStatus, useAuditQueryFarmer, useAuditQueryCertifications, useShipmentReport } from "@/hooks/useTraceability"
+import { useAuditQueryStatus, useAuditQueryFarmer, useAuditQueryCertifications, useShipmentReport, useAuditQueryOwner } from "@/hooks/useTraceability"
 import { Download } from "lucide-react"
 import { traceabilityService } from "@/lib/services/traceability.service"
 import { usePermission } from "@/hooks/usePermission"
 
-type SearchType = "status" | "farmer" | "certifications" | "shipment"
+type SearchType = "status" | "farmer" | "certifications" | "shipment" | "owner"
 
 interface AuditQueryPanelProps {
   initialSearch?: {
@@ -56,8 +56,11 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
   const { data: shipmentData, isLoading: isShipmentLoading } = useShipmentReport(
     activeSearch?.type === "shipment" ? activeSearch.value : ""
   )
+  const { data: ownerData, isLoading: isOwnerLoading } = useAuditQueryOwner(
+    activeSearch?.type === "owner" ? activeSearch.value : ""
+  )
 
-  const isLoading = isStatusLoading || isFarmerLoading || isCertLoading || isShipmentLoading
+  const isLoading = isStatusLoading || isFarmerLoading || isCertLoading || isShipmentLoading || isOwnerLoading
   const responseData =
     activeSearch?.type === "status"
       ? statusData
@@ -65,6 +68,8 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
       ? farmerData
       : activeSearch?.type === "certifications"
       ? certData
+      : activeSearch?.type === "owner"
+      ? ownerData
       : shipmentData
 
   const results = Array.isArray(responseData) ? responseData : (responseData && 'data' in responseData ? responseData.data : [])
@@ -97,6 +102,7 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
               )}
               <SelectItem value="certifications">Par Réf. Certification</SelectItem>
               <SelectItem value="shipment">Rapport d'Expédition (ID)</SelectItem>
+              <SelectItem value="owner">Par Détenteur (Owner ID)</SelectItem>
             </SelectContent>
           </Select>
 
@@ -119,6 +125,8 @@ export function AuditQueryPanel({ initialSearch }: AuditQueryPanelProps) {
                   ? "Ex: FARMER-001"
                   : searchType === "certifications"
                   ? "Ex: CERT-ABC-123"
+                  : searchType === "owner"
+                  ? "Ex: OWNER-ABC"
                   : "Ex: SHIP-XYZ-789"
               }
               value={inputValue}

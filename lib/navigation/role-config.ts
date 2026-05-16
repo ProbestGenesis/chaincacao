@@ -114,10 +114,10 @@ const roleConfigMap: Partial<Record<UserRole, RoleConfig>> = {
     items: [
       { title: "Accueil", href: "/exporter", icon: Home },
       { title: "Conformité", href: "/exporter/conformite", icon: ShieldCheck },
+      { title: "Expéditions", href: "/shipments", icon: Truck },
       { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
-      { title: "Expéditions", href: "/exporter", icon: Truck },
       { title: "Support", href: "/support", icon: CheckCircle2 },
     ],
   },
@@ -131,7 +131,6 @@ const roleConfigMap: Partial<Record<UserRole, RoleConfig>> = {
     items: [
       { title: "Accueil", href: "/carrier", icon: Home },
       { title: "Ordres", href: "/carrier/ordres", icon: Truck },
-      { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
       { title: "Suivi GPS", href: "/carrier/ordres", icon: MapPin },

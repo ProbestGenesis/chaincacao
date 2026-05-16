@@ -137,3 +137,15 @@ export function useRefreshTokenMutation() {
     },
   })
 }
+
+// ============================================================================
+// RECIPIENTS (TRANSFERS)
+// ============================================================================
+
+export function useRecipients() {
+  return useQuery({
+    queryKey: ["actors", "recipients"],
+    queryFn: () => api.get<UserPublicResponse[]>("/api/v1/actors/recipients"),
+    retry: 1,
+  })
+}

@@ -16,7 +16,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Lock, CheckCircle2, Truck, PackageOpen, ShieldCheck, FileCheck2, ClipboardList, ArrowRightLeft } from "lucide-react"
 
 import { TransferRoleDialog } from "./transfer-role-dialog"
+import { CreateShipmentDialog } from "@/components/traceability/create-shipment-dialog"
 import { useState } from "react"
+import { getLotTraceabilityIds } from "@/lib/lot-lineage"
+import { useLotActionsStore } from "@/store/lot-actions"
 
 interface LotActionsPanelProps {
   lot: Lot
@@ -77,21 +80,14 @@ const roleActions: Partial<Record<UserRole, ActionTemplate[]>> = {
       status: "transferred",
       description: "Réception confirmée par l’atelier après transfert de la coopérative.",
     },
+ 
     {
-      label: "Lancer la transformation",
-      icon: PackageOpen,
-      action: "transformed",
-      phase: "transformation",
-      status: "transformed",
-      description: "Transformation du lot avec suivi qualité et conservation de la traçabilité.",
-    },
-    {
-      label: "Valider le contrôle qualité",
-      icon: ShieldCheck,
-      action: "verified",
-      phase: "controle",
-      status: "verified",
-      description: "Contrôle qualité et conformité du lot transformé avant l’étape suivante.",
+      label: "Transférer à l'exportateur",
+      icon: ArrowRightLeft,
+      action: "transferred",
+      phase: "transfert",
+      status: "transferred",
+      description: "Transfert de propriété vers un exportateur après transformation.",
     },
   ],
   Exporter: [
@@ -176,13 +172,16 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
   const { user, activeRole } = useUser()
   const can = usePermission()
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
-  const { 
-    createTransfer, 
-    createTransformation, 
-    createShipment, 
+  const [shipmentDialogOpen, setShipmentDialogOpen] = useState(false)
+  const {
+    createTransfer,
+    createTransformation,
     createCertification,
-    isSubmitting 
+    createShipment,
+    isSubmitting
   } = useTraceability()
+  const hasLotAction = useLotActionsStore((state) => state.hasLotAction)
+  const traceabilityLotIds = getLotTraceabilityIds(lot)
 
   if (!user || !activeRole) return null
 
@@ -262,16 +261,21 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
 
     if (normalizedRole === "Transformer") {
       const transformerActions = roleActions.Transformer || []
-      if (lot.statut === "pending" && transformerActions[0]) {
+      const status = lot.statut?.toLowerCase()
+
+      // 1. Si le lot est en attente (récolté ou transféré par coop), proposer la réception
+      if ((status === "pending" || status === "collecte" || status === "en_transit") && transformerActions[0]) {
         return [customizeForGroup(transformerActions[0])]
       }
 
-      if (lot.statut === "transferred" && transformerActions[1]) {
+      // 2. Si le lot est déjà réceptionné, proposer le transfert à l'exportateur
+      if (status === "transferred" && transformerActions[1]) {
         return [customizeForGroup(transformerActions[1])]
       }
-
-      if (lot.statut === "transformed" && transformerActions[2]) {
-        return [customizeForGroup(transformerActions[2])]
+      
+      // Si le lot est déjà transformé/vérifié par erreur, proposer quand même le transfert
+      if (["transformed", "verified"].includes(status || "") && transformerActions[1]) {
+        return [customizeForGroup(transformerActions[1])]
       }
     }
 
@@ -288,7 +292,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
         case "transformed":
           const transformPayload: TransformationPayload = {
             transformationHash: `TSF-${Date.now()}`,
-            lotHashes: [lot.lotId],
+            lotHashes: traceabilityLotIds,
             typeProcessus: "Fermentation & Séchage",
             file: new File([""], "proof.pdf", { type: "application/pdf" })
           }
@@ -296,27 +300,29 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
           break
 
         case "exported":
-          const shipmentPayload: ShipmentPayload = {
-            shipmentHash: `SHP-${Date.now()}`,
-            lotHashes: [lot.lotId],
-            exportateurId: user.userId,
-            destination: "Europe",
-            dateDepartPrevue: new Date().toISOString(),
-            dateArriveePrevue: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            file: new File([""], "bill_of_lading.pdf", { type: "application/pdf" })
-          }
-          await createShipment(shipmentPayload)
+          setShipmentDialogOpen(true)
           break
 
         case "verified":
-          const certPayload: CertificationPayload = {
-            lot_hash: lot.lotId,
-            certifier_id: user.userId,
-            type: "EUDR_COMPLIANCE",
-            ref_hash: `CERT-${Date.now()}`,
-            metadata: { action: "verified", phase: "controle" }
-          }
-          await createCertification(certPayload)
+          await Promise.all(
+            traceabilityLotIds.map((lotHash, index) => {
+              const certPayload: CertificationPayload = {
+                certHash: `CERT-${Date.now()}-${index}`,
+                refHash: lotHash,
+                verificateurId: user.userId,
+                statut: "CONFORME",
+                rapportHash: `RAP-${Date.now()}-${index}`,
+                metadata: {
+                  action: "verified",
+                  phase: "controle",
+                  groupLotId: lot.isGroup ? (lot as any).lotHash || lot.lotId : undefined,
+                  sourceLotIds: lot.sourceLotIds ?? [],
+                }
+              }
+
+              return createCertification(certPayload)
+            })
+          )
           break
 
         default:
@@ -350,6 +356,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
       <CardContent className="space-y-2">
         {actions.map((action) => {
           const Icon = action.icon
+          const isDone = hasLotAction(lot.lotId, action.action, action.phase)
 
           return (
             <Button
@@ -359,6 +366,7 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
               className="w-full justify-start rounded-xl"
               disabled={
                 isSubmitting || 
+                isDone ||
                 (action.action === "transferred" && !can.canCreateTransfer()) ||
                 (action.action === "transformed" && !can.check("traceability:create_transformation")) ||
                 (action.action === "exported" && !can.check("traceability:create_shipment")) ||
@@ -366,17 +374,31 @@ export function LotActionsPanel({ lot }: LotActionsPanelProps) {
               }
             >
               <Icon className="mr-2 h-4 w-4" />
-              {isSubmitting ? "En cours..." : action.label}
+              {isSubmitting ? "En cours..." : isDone ? `${action.label} (Effectué)` : action.label}
             </Button>
           )
         })}
       </CardContent>
-      <TransferRoleDialog 
-        lot={lot} 
-        open={transferDialogOpen} 
-        onOpenChange={setTransferDialogOpen} 
+      <TransferRoleDialog
+        lot={lot}
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
         activeRole={activeRole}
         currentUserId={user.userId}
+      />
+      <CreateShipmentDialog
+        lotHashes={traceabilityLotIds}
+        isSubmitting={isSubmitting}
+        open={shipmentDialogOpen}
+        onOpenChange={setShipmentDialogOpen}
+        onSubmit={async (payload, onSuccess) => {
+          try {
+            await createShipment(payload)
+            onSuccess()
+          } catch (e) {
+            console.error("Shipment error:", e)
+          }
+        }}
       />
     </Card>
   )

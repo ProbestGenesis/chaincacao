@@ -41,10 +41,10 @@ function ExporterDashboard({ section }: { section: string | null }) {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Exporter"
-        title="Conformité et expédition"
-        description="Suivi des lots prêts à l’export et des confirmations EUDR."
-        actionLabel="Vérifier EUDR"
-        actionHref="/shipments?role=exporter&section=conformite"
+        title="Expéditions"
+        description="Suivi de vos expéditions de lots de cacao."
+        actionLabel="Gérer la conformité"
+        actionHref="/exporter/conformite"
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -57,65 +57,30 @@ function ExporterDashboard({ section }: { section: string | null }) {
       <Card className="border-0 shadow-sm">
         <CardContent className="grid gap-3 p-6">
           {section === "conformite" ? (
-            exportableLots.map((lot) => (
-              <div key={lot.lotId} className="flex flex-col gap-3 rounded-2xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">{lot.lotId}</p>
-                  <p className="text-sm text-muted-foreground">{lot.espece} · {lot.poidsKg} kg</p>
-                </div>
-                <Button
-                  className="rounded-xl"
-                  onClick={() => {
-                    if (!user) return
-                    const lineageLotIds = getLotLineageIds(lot)
-                    confirmEUDR({
-                      shipmentId: lot.lotId,
-                      lotIds: lineageLotIds,
-                      confirmedBy: user.userId,
-                      status: "confirmed",
-                      eudrStatus: "approved",
-                      diligenceDate: new Date().toISOString(),
-                      countryRisk: "low",
-                      esgScore: "98",
-                    })
-                    lineageLotIds.forEach((lotId) => {
-                      addAction({
-                        lotId,
-                        actor: "Exporter",
-                        actorName: user.nomAffiche,
-                        actorId: user.userId,
-                        action: "verified",
-                        phase: "controle",
-                        status: "exported",
-                        description:
-                          lotId === lot.lotId
-                            ? "Confirmation EUDR enregistrée depuis le tableau de bord exporteur."
-                            : `Confirmation EUDR héritée du groupement ${lot.lotId}.`,
-                        metadata: {
-                          shipmentId: lot.lotId,
-                          lotId,
-                          groupLotId: lot.isGroup ? lot.lotId : undefined,
-                          confirmedLotIds: lineageLotIds,
-                          eudrStatus: "approved",
-                        },
-                      })
-                    })
-                    updateEUDRStatus(lot.lotId, "approved")
-                  }}
-                >
-                  <ShieldCheck className="size-4" />
-                  Confirmer EUDR
-                </Button>
-              </div>
-            ))
-          ) : (
             <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Ouvre la section conformité pour valider les lots prêts à l’export.
+              La conformité se gère désormais dans la page dédiée. <Button variant="link" onClick={() => window.location.href = '/exporter/conformite'}>Aller à la conformité</Button>
             </div>
-          )}
-          {!exportableLots.length && section === "conformite" && (
-            <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-              Aucun lot exportable à confirmer.
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-semibold">Historique des expéditions</h3>
+              {lots.filter(l => l.statut === "exported").length > 0 ? (
+                lots.filter(l => l.statut === "exported").map((lot) => (
+                  <div key={lot.lotId} className="flex flex-col gap-3 rounded-2xl border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-green-700">SHP-{lot.lotId.slice(-6)}</p>
+                      <p className="text-sm text-muted-foreground">Lot: {lot.lotId} · {lot.poidsKg} kg</p>
+                    </div>
+                    <Button variant="outline" className="rounded-xl pointer-events-none">
+                      <Truck className="size-4 mr-2" />
+                      Expédié
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground text-center">
+                  Aucune expédition enregistrée.
+                </div>
+              )}
             </div>
           )}
         </CardContent>

@@ -62,8 +62,13 @@ export function CoopManagement() {
   const pendingCount = pendingUsers.length
   const validatedCount = producers.filter((u) => u.blockchain_validated).length
 
-  // Filtrer les lots de la coopérative qui ne sont pas encore transférés
-  const availableLots = lots.filter((l: any) => l.statut === "pending" || l.statut === "verified")
+  // Filtrer les lots de la coopérative qui ne sont pas encore transférés (inclut les groupements)
+  const availableLots = lots.filter((l: any) => 
+    l.statut === "pending" || 
+    l.statut === "verified" || 
+    l.statut === "transferred" ||
+    l.statut === "transformed"
+  )
 
   const handleTransfer = async (data: TransferPayload, onSuccess: () => void) => {
     try {
@@ -217,7 +222,7 @@ export function CoopManagement() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base">Lots prêts pour l'export</CardTitle>
-                <CardDescription>Sélectionnez les lots pour les transférer à un exportateur.</CardDescription>
+                <CardDescription>Sélectionnez les lots pour les transférer</CardDescription>
               </div>
               <TransferLotDialog 
                 lotHashes={selectedLots} 
@@ -246,7 +251,16 @@ export function CoopManagement() {
                           onCheckedChange={() => toggleLot(lot.lotId)}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{lot.lotId}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <div className="flex flex-col gap-1">
+                          <span>{lot.lotId}</span>
+                          {lot.isGroup && (
+                            <Badge variant="secondary" className="w-fit text-[10px] px-1.5 py-0 h-4">
+                              Groupement
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{lot.poidsKg}</TableCell>
                       <TableCell>{lot.espece}</TableCell>
                       <TableCell>{lot.farmerId}</TableCell>

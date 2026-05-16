@@ -27,7 +27,9 @@ export interface TransferPayload {
   transferHash: string
   lotHashes: string[]      // Sera JSON.stringify() avant envoi
   expediteurId: string
+  expediteurName?: string
   destinataireId: string
+  destinataireName?: string
   transporteurId?: string
   file: File               // Document de preuve obligatoire
 }
@@ -85,10 +87,11 @@ export type AuditQueryResponse = AuditQueryLot[] | {
 }
 
 export interface CertificationPayload {
-  lot_hash: string
-  certifier_id: string
-  type: string
-  ref_hash: string
+  certHash: string
+  refHash: string        // Correspond au lot_hash ou shipment_hash
+  verificateurId: string // ID de l'acteur (CERTIF ou MINISTERE)
+  statut: string         // Statut de la certification (ex: "CONFORME", "EUDR_OK")
+  rapportHash: string    // Hash ou lien vers le rapport complet
   metadata?: Record<string, any>
 }
 

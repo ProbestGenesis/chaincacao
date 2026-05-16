@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ArrowRightLeft, ShieldCheck } from "lucide-react"
 import type { TransferPayload } from "@/types/api-traceability"
-import { useActors } from "@/hooks/useActors"
+import { useRecipients } from "@/hooks/api/useAuth"
 import { useUser } from "@/context/useUser"
 
 interface TransferLotDialogProps {
@@ -47,16 +47,12 @@ export function TransferLotDialog({
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const { user } = useUser()
-  const { users, loadUsers } = useActors()
+  const { data: recipients } = useRecipients()
   const { handleSubmit, setValue, watch, reset } = useForm<FormValues>()
 
-  useEffect(() => {
-    if (open) loadUsers()
-  }, [open, loadUsers])
-
   // Transformateurs ET exportateurs comme destinataires potentiels
-  const transformateurs = users.filter(u => u.role === "TRANSFORMATEUR")
-  const exportateurs = users.filter(u => u.role === "EXPORTATEUR")
+  const transformateurs = (recipients || []).filter(u => u.role === "TRANSFORMATEUR")
+  const exportateurs = (recipients || []).filter(u => u.role === "EXPORTATEUR")
 
   const handleFormSubmit = (values: FormValues) => {
     if (!file) return
@@ -114,7 +110,7 @@ export function TransferLotDialog({
                     <SelectLabel>
                       <Badge variant="secondary" className="text-[10px] font-normal">Transformateurs</Badge>
                     </SelectLabel>
-                    {transformateurs.map((t) => (
+                    {transformateurs.map((t: any) => (
                       <SelectItem key={t.id} value={t.blockchain_id || t.id.toString()}>
                         <div className="flex items-center gap-2">
                           <span>{t.full_name}</span>
@@ -131,7 +127,7 @@ export function TransferLotDialog({
                     <SelectLabel>
                       <Badge variant="outline" className="text-[10px] font-normal">Exportateurs</Badge>
                     </SelectLabel>
-                    {exportateurs.map((exp) => (
+                    {exportateurs.map((exp: any) => (
                       <SelectItem key={exp.id} value={exp.blockchain_id || exp.id.toString()}>
                         <div className="flex items-center gap-2">
                           <span>{exp.full_name}</span>

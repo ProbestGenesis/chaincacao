@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 
 import { useUser } from "@/context/useUser"
 import type { UserRole } from "@/types/types"
-import { getRoleRoute } from "@/lib/navigation/role-config"
+import { getRoleRoute, normalizeRole } from "@/lib/navigation/role-config"
 
 export function RoleGuard({
   allowedRoles,
@@ -26,11 +26,18 @@ export function RoleGuard({
       return
     }
 
-    if (activeRole && allowedRoles.includes(activeRole)) {
+    const normalizedActiveRole = activeRole ? normalizeRole(activeRole) : null
+    const normalizedAllowedRoles = allowedRoles.map(r => normalizeRole(r))
+
+    if (normalizedActiveRole && normalizedAllowedRoles.includes(normalizedActiveRole)) {
       return
     }
 
-    const fallbackRole = user.roles.find((role) => allowedRoles.includes(role)) ?? user.roles[0]
+    const fallbackRole = user.roles.find((role) => {
+      const normalized = normalizeRole(role)
+      return normalizedAllowedRoles.includes(normalized)
+    }) ?? user.roles[0]
+
     if (fallbackRole) {
       switchRole(fallbackRole)
       router.replace(getRoleRoute(fallbackRole))
@@ -39,7 +46,10 @@ export function RoleGuard({
     }
   }, [activeRole, allowedRoles, isLoading, router, switchRole, user])
 
-  if (isLoading || !user || (activeRole && !allowedRoles.includes(activeRole))) {
+  const normalizedActiveRole = activeRole ? normalizeRole(activeRole) : null
+  const normalizedAllowedRoles = allowedRoles.map(r => normalizeRole(r))
+
+  if (isLoading || !user || (normalizedActiveRole && !normalizedAllowedRoles.includes(normalizedActiveRole))) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
         Vérification de l'accès...
