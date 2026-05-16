@@ -4,38 +4,74 @@ export const registrationSchema = z
   .object({
     nomAffiche: z
       .string()
-      .min(2, "Full name must be at least 2 characters")
-      .max(100, "Full name must not exceed 100 characters"),
-    email: z.string().email("Please enter a valid email address"),
+      .min(2, "Veuillez entrer un nom d'utilisateur valide")
+      .max(100, "Le nom d'utilisateur est trop long"),
+    email: z.string().email("Veuillez entrer un email valide").optional(),
     telephone: z
       .string()
-      .min(8, "Please enter a valid phone number")
-      .max(20, "Phone number is too long"),
+      .min(8, "Veuillez entrer un numéro de téléphone valide")
+      .max(20, "Le numéro de téléphone est trop long").optional(),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
+      .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+      .regex(/[A-Z]/, "Le mot de passe doit contenir au moins une lettre majuscule")
+      .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre"),
     confirmPassword: z.string(),
     roles: z
       .array(z.string())
-      .min(1, "Please select at least one role")
-      .max(3, "You can select up to 3 roles"),
+      .min(1, "Veuillez sélectionner votre rôle")
+      .max(1, "Veuillez sélectionner un seul rôle"),
+    coopId: z.string().optional(),
+    coopName: z.string().optional(),
+    proofFile: z.any().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Les mots de passe ne correspondent pas",
     path: ["confirmPassword"],
   })
+ 
 
 export type RegistrationFormData = z.infer<typeof registrationSchema>
 
 export const AVAILABLE_ROLES = [
-  { id: "agriculteur", label: "Agriculteur", description: "Farmer" },
-  { id: "coop-manager", label: "CoopManager", description: "Cooperative Manager" },
-  { id: "transformer", label: "Transformer", description: "Processor" },
-  { id: "exporter", label: "Exporter", description: "Exporter" },
-  { id: "carrier-user", label: "CarrierUser", description: "Transport User" },
-  { id: "verifier", label: "Verifier", description: "Verifier" },
-  { id: "importer", label: "Importer", description: "Importer" },
-  { id: "ministry-analyst", label: "MinistryAnalyst", description: "Ministry Analyst" },
+  {
+    id: "agriculteur",
+    label: "Producteur / Agriculteur",
+    description: "Producteur individuel de cacao",
+  },
+  {
+    id: "coop-manager",
+    label: "Gestionnaire de Coopérative",
+    description: "Administrateur d'une coopérative",
+  },
+  {
+    id: "transformer",
+    label: "Transformateur",
+    description: "Unité de transformation locale",
+  },
+  {
+    id: "exporter",
+    label: "Exportateur",
+    description: "Société d'exportation internationale",
+  },
+  {
+    id: "carrier-user",
+    label: "Transporteur",
+    description: "Agent logistique et transport",
+  },
+  {
+    id: "verifier",
+    label: "Vérificateur / Certificateur",
+    description: "Organisme de certification (UTZ, RainForest, etc.)",
+  },
+  {
+    id: "importer",
+    label: "Importateur",
+    description: "Acheteur international",
+  },
+  {
+    id: "ministry-analyst",
+    label: "Analyste du Ministère",
+    description: "Agent gouvernemental de régulation",
+  },
 ]

@@ -10,6 +10,7 @@ import {
   PackageOpen,
   ShieldCheck,
   Truck,
+  UserCog,
   UserRound,
   Warehouse,
   ChartColumn,
@@ -35,7 +36,7 @@ export type RoleConfig = {
   footerItems: RoleNavItem[]
 }
 
-export const roleRouteMap: Record<UserRole, string> = {
+export const roleRouteMap: Partial<Record<UserRole, string>> = {
   Agriculteur: "/agriculteur",
   CoopManager: "/cooperative",
   Transformer: "/transformer",
@@ -47,7 +48,7 @@ export const roleRouteMap: Record<UserRole, string> = {
   Admin: "/admin",
 }
 
-const roleConfigMap: Record<UserRole, RoleConfig> = {
+const roleConfigMap: Partial<Record<UserRole, RoleConfig>> = {
   Agriculteur: {
     role: "Agriculteur",
     label: "Agriculteur",
@@ -58,6 +59,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Accueil", href: "/agriculteur", icon: Home },
       { title: "Mes lots", href: "/agriculteur/lots", icon: PackageOpen },
+      { title: "Mes parcelles", href: "/agriculteur/parcelles", icon: MapPin },
       { title: "Nouveau lot", href: "/agriculteur/nouveau-lot", icon: FolderTree },
       { title: "Historique", href: "/agriculteur/historique", icon: FolderTree },
       { title: "Expéditions", href: "/agriculteur/expedition", icon: Truck },
@@ -78,6 +80,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     items: [
       { title: "Tableau de bord", href: "/cooperative", icon: Home },
       { title: "Gestion lots", href: "/cooperative/lots", icon: Warehouse },
+      { title: "Gestion membres", href: "/cooperative/management", icon: UserCog },
       { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
@@ -114,7 +117,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
       { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
     footerItems: [
-      { title: "Expéditions", href: "/exporter/conformite", icon: Truck },
+      { title: "Expéditions", href: "/exporter", icon: Truck },
       { title: "Support", href: "/support", icon: CheckCircle2 },
     ],
   },
@@ -178,6 +181,7 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
     ctaHref: "/ministry/rapports",
     items: [
       { title: "Accueil", href: "/ministry", icon: Home },
+      { title: "Gestion acteurs", href: "/ministry/management", icon: UserCog },
       { title: "Rapports", href: "/ministry/rapports", icon: ChartColumn },
       { title: "Tous les lots", href: "/all-lots", icon: PackageOpen },
     ],
@@ -205,12 +209,42 @@ const roleConfigMap: Record<UserRole, RoleConfig> = {
   },
 }
 
+export function normalizeRole(role: string): UserRole {
+  const upperRole = role.toUpperCase();
+  switch (upperRole) {
+    case "PRODUCTEUR":
+    case "AGRICULTEUR": 
+      return "Agriculteur"
+    case "COOPERATIVE":
+    case "COOPMANAGER": 
+      return "CoopManager"
+    case "TRANSFORMATEUR":
+    case "TRANSFORMER": 
+      return "Transformer"
+    case "EXPORTATEUR":
+    case "EXPORTER": 
+      return "Exporter"
+    case "CERTIF":
+    case "VERIFIER": 
+      return "Verifier"
+    case "MINISTERE":
+    case "MINISTRYANALYST": 
+      return "MinistryAnalyst"
+    default: 
+      return role as UserRole
+  }
+}
+
 export function getRoleConfig(role: UserRole | null) {
-  return role ? roleConfigMap[role] : roleConfigMap.Agriculteur
+  if (!role) return roleConfigMap.Agriculteur!
+  const normalized = normalizeRole(role)
+  return roleConfigMap[normalized] || roleConfigMap.Agriculteur!
 }
 
 export function getRoleRoute(role: UserRole | null) {
-  return role ? roleRouteMap[role] : roleRouteMap.Agriculteur
+  if (!role) return roleRouteMap.Agriculteur!
+  const normalized = normalizeRole(role)
+  return roleRouteMap[normalized] || roleRouteMap.Agriculteur!
 }
 
 export function roleFromSignupRoleId(roleId: string): UserRole {

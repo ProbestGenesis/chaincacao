@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { translateStatus } from "@/lib/status-helper"
 import { cn } from "@/lib/utils"
 import type { LotAction } from "@/store/lot-actions"
-import { useLotActionsStore } from "@/store/lot-actions"
 import type { Lot } from "@/types/types"
 import {
   ArrowRight,
@@ -87,7 +86,6 @@ export function LotWorkflowTimeline({
   timeline,
   compact = false,
 }: TimelineProps) {
-  const { registerActionOnChain } = useLotActionsStore()
   const actions = [...timeline].sort((a, b) => a.timestamp - b.timestamp)
   const latest = actions[actions.length - 1]
   const uniqueActors = Array.from(
@@ -250,17 +248,7 @@ export function LotWorkflowTimeline({
                             ) : null}
                           </>
                         ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              registerActionOnChain(action.actionId)
-                            }}
-                          >
-                            Enregistrer dans la chaîne
-                          </Button>
+                          <Badge variant="outline">Non enregistré</Badge>
                         )}
                       </div>
                     </div>

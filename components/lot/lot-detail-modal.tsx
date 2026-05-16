@@ -7,12 +7,13 @@ import { Copy, Download, QrCode } from "lucide-react"
 
 import { useUser } from "@/context/useUser"
 import type { Lot } from "@/types/types"
-import { useLotActionsStore } from "@/store/lot-actions"
-import { useEUDRStore } from "@/store/eudr"
+import type { LotAction } from "@/store/lot-actions"
+import { useLotHistory, useLotEUDR } from "@/hooks/useTraceability"
 import { getLotLineageIds } from "@/lib/lot-lineage"
 import { translateStatus } from "@/lib/status-helper"
 import { LotActionsPanel } from "@/components/lot/lot-actions-panel"
 import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
+import { EUDRReportView } from "@/components/traceability/eudr-report-view"
 import {
   Dialog,
   DialogContent,
@@ -47,16 +48,31 @@ export function LotDetailModal({
 }: LotDetailModalProps) {
   const { activeRole } = useUser()
   const { Canvas } = useQRCode()
-  const { getLotTimeline } = useLotActionsStore()
-  const { getEUDRForLot } = useEUDRStore()
+  const { data: serverTimeline } = useLotHistory(lot?.lotId || "")
+  const { data: serverEUDR, isLoading: isLoadingEUDR } = useLotEUDR(lot?.lotId || "")
   const qrBoxRef = useRef<HTMLDivElement>(null)
   const [copyLabel, setCopyLabel] = useState("Copier l'ID")
 
   if (!lot) return null
 
-  const timeline = getLotTimeline(lot.lotId)
-  const eudrRecord = getEUDRForLot(lot.lotId)
-  const qrValue = `chaincacao://lot/${lot.lotId}`
+  const timeline: LotAction[] = (serverTimeline || []).map((entry: any) => ({
+    actionId: entry.txId,
+    lotId: lot.lotId,
+    actor: (entry.value.actor || "Inconnu") as any,
+    actorName: entry.value.actorName || "Acteur Blockchain",
+    actorId: entry.value.actorId || "0x...",
+    action: (entry.value.action || "validated") as any,
+    phase: (entry.value.phase || "transfert") as any,
+    status: (entry.value.statut || "pending") as any,
+    description: entry.value.description || "Action enregistrée sur la blockchain",
+    timestamp: new Date(entry.timestamp).getTime(),
+    chainStatus: "recorded" as const,
+    chainHash: entry.txId,
+    metadata: entry.value.metadata || {}
+  }))
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : ""
+  const qrValue = `${baseUrl}/inventory/${lot.lotId}`
   const metaActions = timeline.flatMap((action) => {
     const metadata = action.metadata
     if (!metadata || typeof metadata !== "object") return []
@@ -105,7 +121,10 @@ export function LotDetailModal({
   const declaredSourceLots = Array.from(new Set([...(lot.sourceLotIds ?? []), ...sourceLots]))
   const isGroupLot = Boolean(lot.isGroup || declaredSourceLots.length > 0)
   const lineageLotIds = getLotLineageIds(lot)
-  const hasConfirmedEUDR = eudrRecord?.status === "confirmed"
+  
+  const hasConfirmedEUDR = serverEUDR?.success
+  const canAccessCompliance = activeRole === "Exporter"
+  const showComplianceTab = canAccessCompliance || hasConfirmedEUDR || !!serverEUDR
 
   const getSignatureLabel = (actorId: string) => {
     const matchedAction = timeline.find((action) => action.actorId === actorId)
@@ -142,9 +161,11 @@ export function LotDetailModal({
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Vue d’ensemble</TabsTrigger>
             <TabsTrigger value="qr">QR Code</TabsTrigger>
-            <TabsTrigger value="timeline">Historique ({timeline.length})</TabsTrigger>
+            {["COOPERATIVE", "EXPORTATEUR", "TRANSFORMATEUR", "MINISTERE"].includes(activeRole || "") ? (
+              <TabsTrigger value="timeline">Historique ({timeline.length})</TabsTrigger>
+            ) : null}
             <TabsTrigger value="actions">Actions</TabsTrigger>
-            <TabsTrigger value="conformite">Conformité</TabsTrigger>
+            {showComplianceTab ? <TabsTrigger value="conformite">Conformité</TabsTrigger> : null}
           </TabsList>
 
           <TabsContent value="overview" className="mt-4 space-y-4">
@@ -401,9 +422,11 @@ export function LotDetailModal({
             </div>
           </TabsContent>
 
-          <TabsContent value="timeline" className="mt-4">
-            <LotWorkflowTimeline lot={lot} timeline={timeline} />
-          </TabsContent>
+          {["COOPERATIVE", "EXPORTATEUR", "TRANSFORMATEUR", "MINISTERE"].includes(activeRole || "") ? (
+            <TabsContent value="timeline" className="mt-4">
+              <LotWorkflowTimeline lot={lot} timeline={timeline} />
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="actions" className="mt-4 space-y-3">
             <div className="rounded-2xl border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -439,106 +462,27 @@ export function LotDetailModal({
             <LotActionsPanel lot={lot} />
           </TabsContent>
 
-          <TabsContent value="conformite" className="mt-4 space-y-4">
-            {eudrRecord ? (
-              <>
+          {showComplianceTab ? (
+            <TabsContent value="conformite" className="mt-4 space-y-4">
+              {serverEUDR ? (
+                <EUDRReportView report={serverEUDR} isLoading={isLoadingEUDR} />
+              ) : (
                 <Card className="border-dashed">
                   <CardHeader>
-                    <CardTitle className="text-base">Fiche de conformité disponible</CardTitle>
-                  <CardDescription>
-                    Cette fiche peut être consultée à tout moment depuis l’historique du lot.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={hasConfirmedEUDR ? "default" : "secondary"}>
-                      {hasConfirmedEUDR ? "Confirmation validée" : "Confirmation en attente"}
-                    </Badge>
-                    {lineageLotIds.length > 1 ? (
-                      <Badge variant="outline">{lineageLotIds.length} lots couverts</Badge>
-                    ) : null}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-muted/30 p-4">
-                      <p className="text-xs text-muted-foreground">Score ESG</p>
-                      <p className="mt-1 text-2xl font-bold">{eudrRecord.esgScore}</p>
-                      </div>
-                      <div className="rounded-2xl bg-muted/30 p-4">
-                        <p className="text-xs text-muted-foreground">Risque pays</p>
-                        <p className="mt-1 text-lg font-semibold capitalize">
-                          {eudrRecord.countryRisk}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-muted/30 p-4">
-                        <p className="text-xs text-muted-foreground">Statut</p>
-                        <p className="mt-1 text-lg font-semibold">{eudrRecord.eudrStatus}</p>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border bg-background/80 p-4 text-sm">
-                      <p className="font-medium">Dernière confirmation</p>
-                      <p className="text-muted-foreground">
-                        {new Date(eudrRecord.timestamp).toLocaleString("fr-FR")}
-                      </p>
-                      <p className="mt-2 text-muted-foreground">
-                        Shipment: {eudrRecord.shipmentId}
-                      </p>
-                      {lineageLotIds.length > 1 ? (
-                        <p className="mt-2 text-muted-foreground">
-                          Cette confirmation s’applique aussi aux lots sources du groupement.
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild className="rounded-full">
-                        <Link href={`/exporter/conformite/${encodeURIComponent(lot.lotId)}`}>
-                          {hasConfirmedEUDR ? "Voir la confirmation" : "Ouvrir la fiche complète"}
-                        </Link>
-                      </Button>
-                      {!hasConfirmedEUDR ? (
-                        <Button asChild variant="outline" className="rounded-full">
-                          <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
-                            Confirmer la conformité EUDR
-                          </Link>
-                        </Button>
-                      ) : (
-                        <Button asChild variant="outline" className="rounded-full">
-                          <Link href={`/exporter/historique?lotId=${encodeURIComponent(lot.lotId)}`}>
-                            Voir l’historique conformité
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
+                    <CardTitle className="text-base">Fiche de conformité verrouillée</CardTitle>
+                    <CardDescription>
+                      La fiche EUDR reste cachée tant que la confirmation n'est pas approuvée sur la blockchain.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Le lot peut toujours être suivi dans l’historique général, mais la fiche de conformité n’est visible qu’après validation par l’exportateur.
+                    </p>
                   </CardContent>
                 </Card>
-              </>
-            ) : (
-              <Card className="border-dashed">
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Fiche de conformité verrouillée
-                  </CardTitle>
-                  <CardDescription>
-                    La fiche EUDR reste cachée tant que la confirmation n&apos;est
-                    pas approuvée.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    Le lot peut toujours être suivi dans l’historique général,
-                    mais la fiche exporteur n’est visible qu’après
-                    confirmation.
-                  </p>
-                  <Button asChild className="rounded-full">
-                    <Link href={`/exporter/conformite?lotId=${encodeURIComponent(lot.lotId)}`}>
-                      Confirmer la conformité EUDR
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+              )}
+            </TabsContent>
+          ) : null}
         </Tabs>
       </DialogContent>
     </Dialog>

@@ -1,95 +1,119 @@
 "use client"
 
 import { useUser } from "@/context/useUser"
-import { useLotsStore } from "@/store/lots"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useLots } from "@/hooks/useLots"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Truck } from "lucide-react"
+import { ArrowLeft, Truck, MapPin } from "lucide-react"
 import Link from "next/link"
+import { translateStatus } from "@/lib/status-helper"
 
-export default function ExpeditionPage() {
+export default function ExpeditionAgriculteurPage() {
   const { user } = useUser()
-  const { getLotsForFarmer } = useLotsStore()
+  const { serverLots, loadLots, isLoading } = useLots()
 
-  const lots = user ? getLotsForFarmer(user.userId) : []
-  const shippedLots = lots.filter((l) => l.statut === "transferred" || l.statut === "transformed" || l.statut === "exported")
+  useEffect(() => {
+    loadLots()
+  }, [loadLots])
+
+  const lots = user ? serverLots.filter(l => l.farmer_id === user.userId || l.farmerId === user.userId) : []
+  const ongoingExpeditions = lots.filter(l => ["pending", "transferred", "en_transit"].includes(l.statut))
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Expéditions</h1>
-          <p className="text-muted-foreground mt-1">Suivi de vos envois</p>
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/10 p-2 rounded-xl">
+            <Truck className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">Expéditions en cours</h1>
+            <p className="text-muted-foreground mt-1">Suivez le transport de vos lots vers les centres de collecte.</p>
+          </div>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href="/agriculteur">
+          <Link href="/agriculteur" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             Retour
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">En Transit</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-blue-600">
-              {lots.filter((l) => l.statut === "transferred").length}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Transformés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
-              {lots.filter((l) => l.statut === "transformed").length}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Exportés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-green-600">
-              {lots.filter((l) => l.statut === "exported").length}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lots en Expédition ({shippedLots.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {shippedLots.length > 0 ? (
-            <div className="space-y-3">
-              {shippedLots.map((lot) => (
-                <div key={lot.lotId} className="border rounded-lg p-4 flex items-center justify-between hover:bg-muted/50">
-                  <div className="flex-1">
-                    <p className="font-mono text-sm font-semibold">{lot.lotId}</p>
-                    <p className="text-xs text-muted-foreground">{lot.poidsKg} kg • {lot.espece}</p>
+      <div className="grid gap-6">
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-32 w-full rounded-2xl" />
+          </div>
+        ) : ongoingExpeditions.length > 0 ? (
+          ongoingExpeditions.map((lot) => (
+            <Card key={lot.lotId || lot.id} className="relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <div className="space-y-4 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-sm font-bold">{lot.lotId || lot.id}</p>
+                      <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
+                    </div>
+                    
+                    <div className="flex items-center gap-8">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-muted p-1.5 rounded-lg">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Départ</p>
+                          <p className="text-sm">{lot.region}</p>
+                        </div>
+                      </div>
+                      <div className="flex-1 h-px bg-dashed border-t-2 border-dashed border-muted relative">
+                        <Truck className="h-4 w-4 absolute -top-2 left-1/2 -translate-x-1/2 text-primary bg-background px-1" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="bg-primary/10 p-1.5 rounded-lg">
+                          <MapPin className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Destination</p>
+                          <p className="text-sm">{lot.coopName || "Centre de collecte"}</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-muted-foreground" />
-                    <Badge variant="outline">{lot.statut}</Badge>
+
+                  <div className="md:w-48 space-y-3">
+                    <div className="bg-muted/40 p-3 rounded-xl text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Poids</p>
+                      <p className="text-xl font-bold">{lot.poidsKg || lot.poids_kg} kg</p>
+                    </div>
+                    <Button asChild className="w-full rounded-xl" size="sm">
+                      <Link href={`/agriculteur/lots/${lot.lotId || lot.id}`}>Détails</Link>
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">Aucune expédition en cours</p>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="bg-muted/30 p-4 rounded-full mb-4">
+                <Truck className="h-10 w-10 text-muted-foreground opacity-30" />
+              </div>
+              <p className="text-lg font-medium">Aucune expédition en cours</p>
+              <p className="text-sm text-muted-foreground max-w-xs mt-1">
+                Lorsque vos lots seront pris en charge par un transporteur, ils apparaîtront ici.
+              </p>
+              <Button asChild className="mt-6" variant="outline">
+                <Link href="/agriculteur/lots">Voir mes lots</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useLotsStore } from "@/store/lots"
+import { useFarmerLots } from "@/hooks/useLots"
 import { useUser } from "@/context/useUser"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,13 +8,17 @@ import { Badge } from "@/components/ui/badge"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 import { translateStatus } from "@/lib/status-helper"
+import { useEffect } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function AgriculteurDashboard() {
   const { user } = useUser()
-  const { getLotsForFarmer } = useLotsStore()
+  const farmerId = user?.blockchainId || user?.userId || ""
+  const { data: _farmerLots = [], isLoading } = useFarmerLots(farmerId)
+  const farmerLots: any[] = _farmerLots
 
-  const farmerLots = user ? getLotsForFarmer(user.userId) : []
-  const totalWeight = farmerLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
+
+  const totalWeight = farmerLots.reduce((sum, lot) => sum + (lot.poidsKg || lot.poids_kg || 0), 0)
   const recentLots = farmerLots.slice(0, 3)
 
   const statusCounts = {
@@ -26,7 +30,7 @@ export function AgriculteurDashboard() {
   }
 
   const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-    draft: { label: "Brouillon", variant: "outline" },
+    draft: { label: "Initialisé", variant: "outline" },
     pending: { label: "En attente", variant: "secondary" },
     transferred: { label: "Transféré", variant: "secondary" },
     transformed: { label: "Transformé", variant: "default" },
@@ -42,7 +46,9 @@ export function AgriculteurDashboard() {
             <CardDescription className="text-amber-700">Poids Total</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-amber-900">{totalWeight}</div>
+            <div className="text-3xl font-bold text-amber-900">
+              {isLoading ? <Skeleton className="h-9 w-16" /> : totalWeight}
+            </div>
             <p className="text-xs text-amber-700 mt-1">kg récoltés</p>
           </CardContent>
         </Card>
@@ -94,13 +100,13 @@ export function AgriculteurDashboard() {
             {recentLots.length > 0 ? (
               recentLots.map((lot) => (
                 <div
-                  key={lot.lotId}
+                  key={lot.lotId || lot.lotHash || lot.id}
                   className="flex items-center justify-between border-b pb-3 last:border-0"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{lot.lotId}</p>
+                    <p className="font-medium text-sm">{lot.lotId || lot.lotHash || lot.id}</p>
                     <p className="text-xs text-muted-foreground">
-                      {lot.poidsKg} kg • {lot.espece}
+                      {lot.poidsKg || lot.poids_kg} kg • {lot.espece}
                     </p>
                   </div>
                   <Badge variant={statusLabels[lot.statut]?.variant || "outline"}>

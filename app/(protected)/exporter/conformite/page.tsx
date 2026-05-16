@@ -1,8 +1,8 @@
 "use client"
 
 import { BadgeCheck, Search, ShieldAlert } from "lucide-react"
-import { useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,31 +21,44 @@ import { useLotsStore } from "@/store/lots"
 import { getLotLineageIds } from "@/lib/lot-lineage"
 
 export default function ConformitePage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const { user } = useUser()
+  const { user, activeRole } = useUser()
   const { lots, getLotById, updateLotStatus, updateLotSyncStatus } =
     useLotsStore()
-  const { confirmEUDR, getEUDRByExporter } = useEUDRStore()
+  const { confirmEUDR, getEUDRByExporter, getEUDRForLot } = useEUDRStore()
   const { addAction, hasLotAction } = useLotActionsStore()
+  const canConfirmEUDR = activeRole === "Exporter"
 
   const initialLotId = searchParams.get("lotId")?.trim() ?? ""
   const initialSelectedLot = useMemo(
     () => getLotById(initialLotId),
     [getLotById, initialLotId]
   )
-
   const [searchValue, setSearchValue] = useState(initialLotId)
   const [statusMessage, setStatusMessage] = useState<string | null>(() =>
     initialSelectedLot
       ? hasLotAction(initialSelectedLot.lotId, "verified", "controle")
         ? `La conformité est déjà validée pour ${initialSelectedLot.lotId}`
-        : `Lot sélectionné depuis la fiche de conformité: vous pouvez confirmer l’EUDR.`
+        : canConfirmEUDR
+          ? `Lot sélectionné depuis la fiche de conformité: vous pouvez confirmer l’EUDR.`
+          : "La vérification de conformité est réservée au rôle Exporter."
       : null
   )
   const selectedLot = useMemo(
     () => getLotById(searchValue.trim()),
     [getLotById, searchValue]
   )
+  const selectedEudrRecord = useMemo(
+    () => (selectedLot ? getEUDRForLot(selectedLot.lotId) ?? null : null),
+    [getEUDRForLot, selectedLot]
+  )
+
+  useEffect(() => {
+    if (canConfirmEUDR || !selectedLot || !selectedEudrRecord) return
+
+    router.replace(`/exporter/conformite/${encodeURIComponent(selectedLot.lotId)}`)
+  }, [canConfirmEUDR, router, selectedLot, selectedEudrRecord])
 
   const readyLots = useMemo(
     () =>
@@ -90,7 +103,9 @@ export default function ConformitePage() {
       lot
         ? hasLotAction(lot.lotId, "verified", "controle")
           ? `La conformité est déjà validée pour ${lot.lotId}`
-          : `Lot trouvé: le bouton de confirmation est maintenant disponible.`
+          : canConfirmEUDR
+            ? `Lot trouvé: le bouton de confirmation est maintenant disponible.`
+            : "Lot trouvé: la vérification reste réservée au rôle Exporter."
         : "Lot non trouvé"
     )
   }
@@ -100,13 +115,20 @@ export default function ConformitePage() {
     setStatusMessage(
       hasLotAction(lotId, "verified", "controle")
         ? `La conformité est déjà validée pour ${lotId}`
-        : `Lot sélectionné: vous pouvez maintenant confirmer la conformité EUDR.`
+        : canConfirmEUDR
+          ? `Lot sélectionné: vous pouvez maintenant confirmer la conformité EUDR.`
+          : "Lot sélectionné: la confirmation n'est pas disponible pour votre rôle."
     )
   }
 
   const handleConfirmEUDR = () => {
     const lot = selectedLot
     if (!lot || !user) return
+
+    if (!canConfirmEUDR) {
+      setStatusMessage("La confirmation de conformité est réservée au rôle Exporter.")
+      return
+    }
 
     if (hasLotAction(lot.lotId, "verified", "controle")) {
       setStatusMessage(`La conformité a déjà été validée pour ${lot.lotId}`)
@@ -311,13 +333,19 @@ export default function ConformitePage() {
                 onClick={handleConfirmEUDR}
                 disabled={
                   !selectedLot ||
-                  hasLotAction(selectedLot.lotId, "verified", "controle")
+                  hasLotAction(selectedLot.lotId, "verified", "controle") ||
+                  !canConfirmEUDR
                 }
                 className="h-14 w-full rounded-2xl bg-amber-400 text-[#2f1713] hover:bg-amber-300"
               >
                 <BadgeCheck className="h-4 w-4" />
                 Confirmer la conformité EUDR
               </Button>
+              {!canConfirmEUDR ? (
+                <p className="text-xs text-white/65">
+                  La vérification de conformité est accessible uniquement au rôle Exporter.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </div>

@@ -5,10 +5,8 @@ import Link from "next/link"
 
 import { RoleGuard } from "@/components/layout/role-guard"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
-import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
-import { useLotActionsStore } from "@/store/lot-actions"
-import { useLotsStore } from "@/store/lots"
 import { useUser } from "@/context/useUser"
+import { useLots } from "@/hooks/useLots"
 import type { Lot } from "@/types/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,6 +23,13 @@ const allowedRoles = [
   "Importer",
   "MinistryAnalyst",
   "Admin",
+  // New API roles
+  "PRODUCTEUR",
+  "COOPERATIVE",
+  "EXPORTATEUR",
+  "TRANSFORMATEUR",
+  "CERTIF",
+  "MINISTERE",
 ] as const
 
 export default function AllLotsPage() {
@@ -36,8 +41,7 @@ export default function AllLotsPage() {
 }
 
 function AllLotsContent() {
-  const { lots } = useLotsStore()
-  const { getLotTimeline } = useLotActionsStore()
+  const { serverLots: lots, isLoading } = useLots()
   const { activeRole } = useUser()
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -48,7 +52,7 @@ function AllLotsContent() {
       lot.lotId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.espece.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lot.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.coopName.toLowerCase().includes(searchTerm.toLowerCase())
+      (lot.coopName || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const statusLabels: Record<string, { label: string; color: string }> = {
@@ -62,18 +66,22 @@ function AllLotsContent() {
   const metrics = [
     { label: "Lots visibles", value: filteredLots.length },
     {
-      label: "Traçables",
-      value: filteredLots.filter((lot) => getLotTimeline(lot.lotId).length > 0).length,
+      label: "En attente",
+      value: filteredLots.filter((lot) => lot.statut === "pending").length,
     },
     {
       label: "Exportés",
       value: filteredLots.filter((lot) => lot.statut === "exported").length,
     },
     {
-      label: "Validations",
-      value: filteredLots.reduce((count, lot) => count + getLotTimeline(lot.lotId).length, 0),
+      label: "Régions",
+      value: new Set(filteredLots.map((l) => l.region)).size,
     },
   ]
+
+  if (isLoading) {
+    return <div className="p-8 text-center">Chargement des lots...</div>
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -134,59 +142,39 @@ function AllLotsContent() {
         </CardHeader>
         <CardContent className="space-y-3">
           {filteredLots.length > 0 ? (
-            filteredLots.map((lot) => {
-              const timeline = getLotTimeline(lot.lotId)
-              const lastAction = timeline[timeline.length - 1]
-
-              return (
-                <button
-                  key={lot.lotId}
-                  onClick={() => {
-                    setSelectedLot(lot)
-                    setModalOpen(true)
-                  }}
-                  className="w-full rounded-2xl border p-4 text-left transition hover:border-primary/60 hover:bg-muted/30"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                    <div className="flex-1 space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-mono text-sm font-semibold">{lot.lotId}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {lot.poidsKg} kg • {lot.espece} • {lot.region} • {lot.coopName}
-                          </p>
-                        </div>
-                        <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
-                          {statusLabels[lot.statut]?.label || lot.statut}
-                        </Badge>
-                      </div>
-
-                      {lastAction ? (
-                        <div className="rounded-xl border bg-background/80 p-3 text-sm">
-                          <p className="font-medium">Dernière validation</p>
-                          <p className="text-muted-foreground">
-                            {lastAction.phase} • {lastAction.actorName} ({lastAction.actor})
-                          </p>
-                          <p className="mt-1">{lastAction.description}</p>
-                        </div>
-                      ) : (
+            filteredLots.map((lot) => (
+              <button
+                key={lot.lotId}
+                onClick={() => {
+                  setSelectedLot(lot)
+                  setModalOpen(true)
+                }}
+                className="w-full rounded-2xl border p-4 text-left transition hover:border-primary/60 hover:bg-muted/30"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-sm font-semibold">{lot.lotId}</p>
                         <p className="text-sm text-muted-foreground">
-                          Aucun évènement enregistré sur ce lot.
+                          {lot.poidsKg} kg • {lot.espece} • {lot.region} • {lot.coopName}
                         </p>
-                      )}
+                      </div>
+                      <Badge className={statusLabels[lot.statut]?.color || "bg-gray-100"}>
+                        {statusLabels[lot.statut]?.label || lot.statut}
+                      </Badge>
                     </div>
-
-                    <div className="w-full max-w-xl">
-                      <LotWorkflowTimeline lot={lot} timeline={timeline} compact />
-                    </div>
-
-                    <div className="flex items-center justify-end text-muted-foreground">
-                      <ChevronRight className="h-5 w-5" />
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Cliquez pour voir la traçabilité complète et les certificats blockchain.
+                    </p>
                   </div>
-                </button>
-              )
-            })
+
+                  <div className="flex items-center justify-end text-muted-foreground">
+                    <ChevronRight className="h-5 w-5" />
+                  </div>
+                </div>
+              </button>
+            ))
           ) : (
             <p className="py-10 text-center text-muted-foreground">Aucun lot trouvé</p>
           )}

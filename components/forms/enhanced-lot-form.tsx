@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { AlertCircle, Loader, MapPin, Upload, X } from "lucide-react"
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -24,6 +24,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { LotFormSchema, type LotFormData } from "@/lib/schemas/lot"
 import { cn } from "@/lib/utils"
+import { useParcelles } from "@/hooks/useParcelles"
+import { RegisterParcelleDialog } from "../parcelles/register-parcelle-dialog"
 
 export function EnhancedLotForm({
   className,
@@ -36,13 +38,12 @@ export function EnhancedLotForm({
   defaultValues?: Partial<LotFormData>
   submitLabel?: string
   secondaryAction?: React.ReactNode
-  onSubmit: (values: LotFormData) => void | Promise<void>
+  onSubmit: (values: LotFormData, files: File[]) => void | Promise<void>
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [geoLoading, setGeoLoading] = useState(true)
-  const [geoError, setGeoError] = useState<string | null>(null)
   const [uploadedImages, setUploadedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const { parcelles, isLoading: parcellesLoading, loadParcelles } = useParcelles()
 
   const {
     register,
@@ -56,57 +57,16 @@ export function EnhancedLotForm({
       espece: "",
       poidsKg: 0,
       dateCollecte: new Date(),
-      region: "",
-      gpsLatitude: 0,
-      gpsLongitude: 0,
+      parcelleId: "",
       photoUrls: [],
-      coopName: "",
+      coopId: "",
       ...defaultValues,
     },
   })
 
-  // Request geolocation on mount
   useEffect(() => {
-    requestGeolocation()
+    loadParcelles()
   }, [])
-
-  const requestGeolocation = () => {
-    if (!navigator.geolocation) {
-      setGeoError("Géolocalisation non disponible sur cet appareil")
-      setGeoLoading(false)
-      return
-    }
-
-    setGeoLoading(true)
-    setGeoError(null)
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = parseFloat(position.coords.latitude.toFixed(6))
-        const lon = parseFloat(position.coords.longitude.toFixed(6))
-
-        setValue("gpsLatitude", lat)
-        setValue("gpsLongitude", lon)
-        setGeoLoading(false)
-      },
-      (error) => {
-        let message = "Erreur de géolocalisation"
-        if (error.code === error.PERMISSION_DENIED) {
-          message =
-            "Accès à la géolocalisation refusé. Veuillez activer les permissions."
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          message = "Position non disponible. Essayez ultérieurement."
-        }
-        setGeoError(message)
-        setGeoLoading(false)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    )
-  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -133,85 +93,69 @@ export function EnhancedLotForm({
   const submit = handleSubmit(async (values) => {
     setIsSubmitting(true)
     try {
-      await onSubmit(values as LotFormData)
+      await onSubmit(values as LotFormData, uploadedImages)
     } finally {
       setIsSubmitting(false)
     }
   })
 
-  const latitude = watch("gpsLatitude")
-  const longitude = watch("gpsLongitude")
-
   return (
     <form onSubmit={submit} className={cn("space-y-6", className)}>
-      {/* Geolocation Section */}
-      <Card className="">
+      {/* Parcelle Section */}
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <MapPin className="h-5 w-5 text-primary" />
-            Localisation GPS
+            Origine du Lot (Parcelle)
           </CardTitle>
           <CardDescription>
-            Votre position est détectée automatiquement
+            Sélectionnez la parcelle d'où provient ce lot. Les coordonnées GPS seront automatiquement associées.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {geoError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{geoError}</AlertDescription>
-            </Alert>
-          )}
-
-          {geoLoading ? (
+          {parcellesLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader className="h-4 w-4 animate-spin text-primary" />
-              Détection de la position en cours...
+              Chargement de vos parcelles...
             </div>
-          ) : latitude && longitude ? (
-            <div className="grid grid-cols-2 gap-4 rounded border border-border bg-card p-3">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Latitude
-                </p>
-                <p className="text-lg font-semibold text-foreground">
-                  {latitude.toFixed(4)}°
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Longitude
-                </p>
-                <p className="text-lg font-semibold text-foreground">
-                  {longitude.toFixed(4)}°
-                </p>
-              </div>
-            </div>
+          ) : parcelles.length === 0 ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>Vous n'avez pas encore enregistré de parcelle.</span>
+                <RegisterParcelleDialog />
+              </AlertDescription>
+            </Alert>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Position en attente...
-            </p>
+            <div className="flex gap-4 items-start">
+              <div className="flex-1">
+                <select 
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  {...register("parcelleId")}
+                >
+                  <option value="">Sélectionnez une parcelle</option>
+                  {parcelles.map(p => (
+                    <option key={p.parcelleId} value={p.parcelleId}>
+                      {p.culture} - {p.surface} ha (GPS: {p.gps[0]?.latitude.toFixed(2)}, {p.gps[0]?.longitude.toFixed(2)})
+                    </option>
+                  ))}
+                </select>
+                {errors.parcelleId && (
+                  <p className="text-xs text-destructive mt-1">{errors.parcelleId.message}</p>
+                )}
+              </div>
+              <RegisterParcelleDialog />
+            </div>
           )}
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={requestGeolocation}
-            disabled={geoLoading}
-            className="w-full"
-          >
-            {geoLoading ? "Détection..." : "Réessayer la détection"}
-          </Button>
         </CardContent>
       </Card>
 
       {/* Image Upload Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Photos du Lot</CardTitle>
+          <CardTitle className="text-base">Photos de la Récolte *</CardTitle>
           <CardDescription>
-            Téléchargez jusqu'à 5 photos de votre récolte
+            Téléchargez au moins 1 photo de votre récolte (max 5)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -246,7 +190,7 @@ export function EnhancedLotForm({
                     <img
                       src={preview}
                       alt={`Preview ${index}`}
-                      className="h-20 w-full rounded border object-cover"
+                      className="aspect-square w-full rounded border object-cover"
                     />
                     <button
                       type="button"
@@ -260,6 +204,9 @@ export function EnhancedLotForm({
               </div>
             </div>
           )}
+          {uploadedImages.length === 0 && (
+            <p className="text-xs text-destructive">Une photo est requise pour créer le lot.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -270,19 +217,9 @@ export function EnhancedLotForm({
           <Input
             id="espece"
             {...register("espece")}
-            placeholder="Cacao Fermenté"
+            placeholder="Cacao Forastero..."
           />
           <FieldError errors={[errors.espece]} />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="coopName">Coopérative</FieldLabel>
-          <Input
-            id="coopName"
-            {...register("coopName")}
-            placeholder="Coopérative Centrale"
-          />
-          <FieldError errors={[errors.coopName]} />
         </Field>
 
         <Field>
@@ -291,20 +228,11 @@ export function EnhancedLotForm({
             id="poidsKg"
             type="number"
             inputMode="decimal"
+            step="0.1"
             {...register("poidsKg", { valueAsNumber: true })}
-            placeholder="450"
+            placeholder="120.5"
           />
           <FieldError errors={[errors.poidsKg]} />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="region">Région</FieldLabel>
-          <Input
-            id="region"
-            {...register("region")}
-            placeholder="Haut-Sassandra"
-          />
-          <FieldError errors={[errors.region]} />
         </Field>
 
         <Field>
@@ -318,11 +246,26 @@ export function EnhancedLotForm({
           />
           <FieldError errors={[errors.dateCollecte]} />
         </Field>
+
+        <Field>
+          <FieldLabel htmlFor="coopId">ID Coopérative (Optionnel)</FieldLabel>
+          <Input
+            id="coopId"
+            {...register("coopId")}
+            placeholder="COOP-XXXX"
+            disabled={!!watch("coopId")}
+          />
+          <FieldError errors={[errors.coopId]} />
+        </Field>
       </FieldGroup>
 
       {/* Submit */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="submit" disabled={isSubmitting} className="rounded-xl">
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || uploadedImages.length === 0 || !watch("parcelleId")} 
+          className="rounded-xl"
+        >
           <Upload className="size-4" />
           {isSubmitting ? "Création en cours..." : submitLabel}
         </Button>
@@ -331,3 +274,4 @@ export function EnhancedLotForm({
     </form>
   )
 }
+

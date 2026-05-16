@@ -43,11 +43,9 @@ export function LotForm({
       espece: "",
       poidsKg: 0,
       dateCollecte: new Date(),
-      region: "",
-      gpsLatitude: 0,
-      gpsLongitude: 0,
+      parcelleId: "",
       photoUrls: [],
-      coopName: "",
+      coopId: "",
       ...defaultValues,
     },
   })
@@ -71,9 +69,9 @@ export function LotForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="coopName">Coopérative</FieldLabel>
-          <Input id="coopName" {...register("coopName")} placeholder="Coopérative Centrale" />
-          <FieldError errors={[errors.coopName]} />
+          <FieldLabel htmlFor="coopId">ID Coopérative (Optionnel)</FieldLabel>
+          <Input id="coopId" {...register("coopId")} placeholder="COOP-XXXX" />
+          <FieldError errors={[errors.coopId]} />
         </Field>
 
         <Field>
@@ -89,33 +87,9 @@ export function LotForm({
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="region">Région</FieldLabel>
-          <Input id="region" {...register("region")} placeholder="Kpalimé" />
-          <FieldError errors={[errors.region]} />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="gpsLatitude">Latitude GPS</FieldLabel>
-          <Input
-            id="gpsLatitude"
-            type="number"
-            step="0.000001"
-            {...register("gpsLatitude", { valueAsNumber: true })}
-            placeholder="6.12345"
-          />
-          <FieldError errors={[errors.gpsLatitude]} />
-        </Field>
-
-        <Field>
-          <FieldLabel htmlFor="gpsLongitude">Longitude GPS</FieldLabel>
-          <Input
-            id="gpsLongitude"
-            type="number"
-            step="0.000001"
-            {...register("gpsLongitude", { valueAsNumber: true })}
-            placeholder="1.23456"
-          />
-          <FieldError errors={[errors.gpsLongitude]} />
+          <FieldLabel htmlFor="parcelleId">Parcelle ID</FieldLabel>
+          <Input id="parcelleId" {...register("parcelleId")} placeholder="PARC-01" />
+          <FieldError errors={[errors.parcelleId]} />
         </Field>
 
         <Field>

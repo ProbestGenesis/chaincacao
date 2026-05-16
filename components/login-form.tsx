@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -12,6 +13,8 @@ import { useUser } from "@/context/useUser"
 import { loginSchema, type LoginFormData } from "@/lib/schemas/login"
 import { cn } from "@/lib/utils"
 import { useUsersStore } from "@/store/users"
+import { api } from "@/lib/api"
+import { User } from "@/types/types"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -23,7 +26,7 @@ export function LoginForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { setUser } = useUser()
-  const getUserByEmail = useUsersStore((state) => state.getUserByEmail)
+  const setToken = useUsersStore((state) => state.setToken)
 
   const {
     register,
@@ -38,26 +41,52 @@ export function LoginForm({
     setIsSubmitting(true)
     setError(null)
     try {
-      const foundUser = getUserByEmail(data.email)
+      const response = await api.post<{
+        access_token: string
+        token_type: string
+        user: {
+          email: string
+          full_name: string
+          role: string
+          org_name: string
+          blockchain_id: string
+        }
+      }>(
+        "/api/v1/auth/login",
+        {
+          username: data.email, // This can be email or phone
+          password: data.password,
+        },
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      )
 
-      if (!foundUser) {
-        setError("Email ou mot de passe invalide")
-        setIsSubmitting(false)
-        return
+      if (response.access_token) {
+        setToken(response.access_token)
+
+        const userRole = response.user.role as any // Will be mapped or used as is
+
+        const newUser: User = {
+          userId: response.user.blockchain_id || response.user.email,
+          email: response.user.email,
+          telephone: "", // We don't have it in the login response yet, but it's okay
+          nomAffiche: response.user.full_name,
+          roles: [userRole],
+          orgName: response.user.org_name,
+          blockchainId: response.user.blockchain_id,
+          statut: "actif",
+          dateCreation: Date.now(),
+          derniereConnexion: Date.now(),
+          token: response.access_token,
+        }
+
+        setUser(newUser)
       }
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Update user context with login timestamp
-      const updatedUser = {
-        ...foundUser,
-        derniereConnexion: Date.now(),
-      }
-
-      setUser(updatedUser)
-    } catch (err) {
-      setError("Erreur de connexion. Veuillez réessayer.")
+    } catch (err: any) {
+      setError(err.message || "Erreur de connexion. Veuillez réessayer.")
       console.error("Login error:", err)
     } finally {
       setIsSubmitting(false)
@@ -74,7 +103,7 @@ export function LoginForm({
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Connexion à votre compte</h1>
           <p className="text-sm text-balance text-muted-foreground">
-            Saisissez votre e‑mail ci‑dessous pour vous connecter à votre compte
+            Saisissez votre e‑mail ou votre numéro de téléphone pour vous connecter
           </p>
         </div>
 
@@ -85,11 +114,11 @@ export function LoginForm({
         )}
 
         <Field>
-          <FieldLabel htmlFor="email">E-mail</FieldLabel>
+          <FieldLabel htmlFor="email">E-mail ou Téléphone</FieldLabel>
           <Input
             id="email"
-            type="email"
-            placeholder="m@example.com"
+            type="text"
+            placeholder="m@example.com ou +228..."
             className="bg-background"
             {...register("email")}
           />
@@ -101,12 +130,12 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
-            <a
-              href="#"
+            <Link
+              href="/auth/forgot-password"
               className="ml-auto text-sm underline-offset-4 hover:underline"
             >
               Mot de passe oublié ?
-            </a>
+            </Link>
           </div>
           <Input
             id="password"

@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 
-import { useLotsStore } from "@/store/lots"
+import { useLots } from "@/hooks/useLots"
 import { useLotActionsStore } from "@/store/lot-actions"
+import { useCooperativeStore } from "@/store/cooperative"
 import { useUser } from "@/context/useUser"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,27 +13,44 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, CheckCircle2, Clock3, PackageOpen, RefreshCw, Truck } from "lucide-react"
 import Link from "next/link"
 import { translateStatus } from "@/lib/status-helper"
+import { getLotHistoryIds } from "@/lib/lot-lineage"
+import { TransformationDialog } from "@/components/traceability/transformation-dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { useEffect } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function TransformerDashboard() {
   const { user, activeRole } = useUser()
-  const { lots } = useLotsStore()
+  const { serverLots, loadLots, isLoading } = useLots()
   const { getLotTimeline, actions } = useLotActionsStore()
+  const groups = useCooperativeStore((state) => state.groups)
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
+  const [selectedLotHashes, setSelectedLotHashes] = useState<string[]>([])
 
-  const transformerLots = lots.filter((lot) =>
-    ["pending", "transferred", "transformed", "verified", "exported"].includes(lot.statut)
+  useEffect(() => {
+    loadLots()
+  }, [loadLots])
+
+  const toggleLotSelection = (hash: string) => {
+    setSelectedLotHashes(prev => 
+      prev.includes(hash) ? prev.filter(h => h !== hash) : [...prev, hash]
+    )
+  }
+
+  const transformerLots = serverLots.filter((lot) =>
+    ["pending", "transferred", "transformed", "verified", "exported", "en_transit", "transforme", "exporte"].includes(lot.statut?.toLowerCase())
   )
   const selectedLot = selectedLotId
-    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    ? serverLots.find((lot) => (lot.lotId || lot.id) === selectedLotId) ?? null
     : null
 
-  const pendingLots = transformerLots.filter((lot) => lot.statut === "pending")
-  const transferredLots = transformerLots.filter((lot) => lot.statut === "transferred")
-  const transformedLots = transformerLots.filter((lot) => lot.statut === "transformed")
+  const pendingLots = transformerLots.filter((lot) => lot.statut?.toLowerCase() === "pending")
+  const transferredLots = transformerLots.filter((lot) => lot.statut?.toLowerCase() === "transferred")
+  const transformedLots = transformerLots.filter((lot) => ["transformed", "transforme", "verified"].includes(lot.statut?.toLowerCase()))
   const totalWeight = transformerLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
   const totalSourceActions = transformerLots.reduce(
-    (sum, lot) => sum + getLotTimeline(lot.lotId).length,
+    (sum, lot) => sum + getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups)).length,
     0
   )
   const recentActions = [...actions]
@@ -44,7 +62,7 @@ export function TransformerDashboard() {
 
   const lotSnapshots = transformerLots
     .map((lot) => {
-      const timeline = getLotTimeline(lot.lotId)
+      const timeline = getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups))
       const lastEvent = timeline[timeline.length - 1]
       return {
         lot,
@@ -177,67 +195,83 @@ export function TransformerDashboard() {
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Lots à traiter</CardTitle>
-            <CardDescription>
-              Les lots se mettent à jour automatiquement selon les créations et transferts
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-lg">Lots à traiter</CardTitle>
+              <CardDescription>
+                Les lots se mettent à jour automatiquement selon les créations et transferts
+              </CardDescription>
+            </div>
+            <TransformationDialog 
+              lotHashes={selectedLotHashes} 
+              onSuccess={() => setSelectedLotHashes([])} 
+            />
           </CardHeader>
           <CardContent>
-            {transformerLots.length > 0 ? (
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-24 w-full rounded-2xl" />
+                <Skeleton className="h-24 w-full rounded-2xl" />
+              </div>
+            ) : transformerLots.length > 0 ? (
               <div className="space-y-3">
-                {transformerLots.slice(0, 6).map((lot) => {
-                  const timeline = getLotTimeline(lot.lotId)
+                {transformerLots.slice(0, 10).map((lot) => {
+                  const timeline = getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups))
                   const lastEvent = timeline[timeline.length - 1]
 
                   return (
-                    <button
-                      key={lot.lotId}
-                      type="button"
-                      onClick={() => {
-                        setSelectedLotId(lot.lotId)
-                        setLotDetailOpen(true)
-                      }}
-                      className="w-full rounded-2xl border p-4 text-left transition hover:border-primary/50 hover:bg-muted/30"
+                    <div
+                      key={lot.lotId || lot.id}
+                      className="group relative flex items-start gap-3 rounded-2xl border p-4 text-left transition hover:border-primary/50 hover:bg-muted/30"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-mono text-sm font-semibold">{lot.lotId}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {lot.espece} • {lot.poidsKg} kg • {lot.region}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
+                      <div className="pt-1">
+                        <Checkbox 
+                          checked={selectedLotHashes.includes(lot.lotId || lot.id)}
+                          onCheckedChange={() => toggleLotSelection(lot.lotId || lot.id)}
+                        />
                       </div>
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => {
+                          setSelectedLotId(lot.lotId || lot.id)
+                          setLotDetailOpen(true)
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-mono text-sm font-semibold">{lot.lotId || lot.id}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {lot.espece} • {lot.poidsKg || lot.poids_kg} kg • {lot.region}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">{translateStatus(lot.statut)}</Badge>
+                        </div>
 
-                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                        <div className="rounded-xl bg-muted/40 p-3">
-                          <p className="text-xs text-muted-foreground">Créé par</p>
-                          <p className="text-sm font-medium">{lot.createdBy}</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3 text-xs">
+                          <div className="rounded-xl bg-muted/40 p-2">
+                            <span className="text-muted-foreground block">Origine</span>
+                            <span className="font-medium">{lot.coopName || "Direct"}</span>
+                          </div>
+                          <div className="rounded-xl bg-muted/40 p-2 text-center">
+                            <span className="text-muted-foreground block">Sync</span>
+                            <span className="font-medium capitalize">{lot.syncStatus}</span>
+                          </div>
+                          <div className="rounded-xl bg-muted/40 p-2 text-right">
+                            <span className="text-muted-foreground block">Étapes</span>
+                            <span className="font-medium">{timeline.length}</span>
+                          </div>
                         </div>
-                        <div className="rounded-xl bg-muted/40 p-3">
-                          <p className="text-xs text-muted-foreground">Synchronisation</p>
-                          <p className="text-sm font-medium">{lot.syncStatus}</p>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 p-3">
-                          <p className="text-xs text-muted-foreground">Étapes</p>
-                          <p className="text-sm font-medium">{timeline.length}</p>
-                        </div>
-                      </div>
 
-                      {lastEvent ? (
-                        <div className="mt-3 rounded-xl border bg-background/80 p-3 text-sm">
-                          <p className="font-medium">Dernier mouvement</p>
-                          <p className="text-muted-foreground">
-                            {lastEvent.phase} • {lastEvent.actorName} ({lastEvent.actor})
-                          </p>
-                          <p className="mt-1">{lastEvent.description}</p>
-                        </div>
-                      ) : null}
-                      <div className="mt-3 flex items-center justify-end text-xs font-medium text-muted-foreground">
-                        Ouvrir et agir
+                        {lastEvent ? (
+                          <div className="mt-3 rounded-xl border bg-background/80 p-3 text-[11px]">
+                            <p className="font-medium text-muted-foreground uppercase tracking-wider text-[9px] mb-1">Dernier mouvement</p>
+                            <p className="font-medium text-slate-800">
+                              {lastEvent.phase} par {lastEvent.actorName}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
@@ -256,12 +290,12 @@ export function TransformerDashboard() {
             {lotSnapshots.length > 0 ? (
               <div className="space-y-3">
                 {lotSnapshots.map(({ lot, lastEvent }) => (
-                  <div key={lot.lotId} className="rounded-2xl border bg-muted/20 p-4">
+                  <div key={lot.lotId || lot.id} className="rounded-2xl border bg-muted/20 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold">{lot.lotId}</p>
+                        <p className="text-sm font-semibold">{lot.lotId || lot.id}</p>
                         <p className="text-xs text-muted-foreground">
-                          {translateStatus(lot.statut)} • {lot.poidsKg} kg
+                          {translateStatus(lot.statut)} • {lot.poidsKg || lot.poids_kg} kg
                         </p>
                       </div>
                       <Badge variant="outline">{lastEvent?.actor ?? "Aucun"}</Badge>

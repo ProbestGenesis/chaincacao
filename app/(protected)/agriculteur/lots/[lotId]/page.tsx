@@ -9,12 +9,14 @@ import { ArrowLeft, Copy, Download, QrCode } from "lucide-react"
 import { useUser } from "@/context/useUser"
 import { LotActionsPanel } from "@/components/lot/lot-actions-panel"
 import { LotWorkflowTimeline } from "@/components/lot/lot-workflow-timeline"
+import { useCooperativeStore } from "@/store/cooperative"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { getLotHistoryIds } from "@/lib/lot-lineage"
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   draft: { label: "Brouillon", color: "bg-gray-100 text-gray-800" },
@@ -29,6 +31,7 @@ export default function LotDetailPage() {
   const { activeRole } = useUser()
   const { getLotById } = useLotsStore()
   const { getLotTimeline } = useLotActionsStore()
+  const groups = useCooperativeStore((state) => state.groups)
   const { Canvas } = useQRCode()
   const qrBoxRef = useRef<HTMLDivElement>(null)
   const [copyLabel, setCopyLabel] = useState("Copier l'ID")
@@ -37,7 +40,7 @@ export default function LotDetailPage() {
   const lot = getLotById(lotId)
 
   const qrValue = lot ? `chaincacao://lot/${lot.lotId}` : ""
-  const timeline = lot ? getLotTimeline(lot.lotId) : []
+  const timeline = lot ? getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups)) : []
 
   const copyLotId = async () => {
     if (!lot) return

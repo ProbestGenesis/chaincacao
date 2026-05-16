@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import type { Lot } from "@/types/types"
+import { usePermission } from "@/hooks/usePermission"
 
 type TimelineEntry = {
   actionId: string
@@ -43,6 +44,7 @@ export function SelectedLotCompliance({
   onDownloadReport,
   onShowMessage,
 }: ComplianceDetailProps) {
+  const can = usePermission()
   const displayedDocuments = documents.length > 0 ? documents : ["rapport-eudr.pdf", "liste-pieces-export.pdf"]
   const displayedSourceLots = sourceLots.length > 0 ? sourceLots : [lot.lotId]
 
@@ -61,9 +63,15 @@ export function SelectedLotCompliance({
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">Origine de la parcelle</p>
             <p className="mt-2 text-xl font-semibold">{lot.region}</p>
             <p className="text-sm text-white/80">{lot.coopName}</p>
-            <p className="mt-2 text-sm text-white/75">
-              Coordonnées: {lot.gps.latitude.toFixed(4)}° N, {lot.gps.longitude.toFixed(4)}° E
-            </p>
+            {can.canReadEUDRWithGPS() ? (
+              <p className="mt-2 text-sm text-white/75">
+                Coordonnées: {lot.gps.latitude.toFixed(4)}° N, {lot.gps.longitude.toFixed(4)}° E
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-white/75 italic">
+                Coordonnées GPS masquées (accès restreint)
+              </p>
+            )}
           </div>
           <div className="relative mt-28 flex items-center justify-end gap-2">
             <Button

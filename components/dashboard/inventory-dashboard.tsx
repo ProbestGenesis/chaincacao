@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useUser } from "@/context/useUser"
 import { useCooperativeStore } from "@/store/cooperative"
-import { useLotsStore } from "@/store/lots"
+import { useLots } from "@/hooks/useLots"
+import { type Lot } from "@/types/types"
 
 export function InventoryDashboard() {
   const { user, activeRole } = useUser()
   const searchParams = useSearchParams()
-  const allLots = useLotsStore((state) => state.lots)
+  const { serverLots: allLots, isLoading } = useLots()
   const groups = useCooperativeStore((state) => state.groups)
   const section = searchParams.get("section")
 
@@ -25,6 +26,10 @@ export function InventoryDashboard() {
     if (!farmerId) return []
     return allLots.filter((lot) => lot.farmerId === farmerId)
   }, [allLots, user?.userId])
+
+  if (isLoading) {
+    return <div className="p-8 text-center">Chargement de l'inventaire...</div>
+  }
 
   if (activeRole === "CoopManager") {
     return (
@@ -46,7 +51,7 @@ function FarmerDashboard({
   userName,
   section,
 }: {
-  lots: ReturnType<typeof useLotsStore.getState>["lots"]
+  lots: Lot[]
   userName: string
   section: string | null
 }) {
@@ -167,7 +172,7 @@ function CooperativeDashboard({
   groups,
   section,
 }: {
-  lots: ReturnType<typeof useLotsStore.getState>["lots"]
+  lots: Lot[]
   groups: ReturnType<typeof useCooperativeStore.getState>["groups"]
   section: string | null
 }) {

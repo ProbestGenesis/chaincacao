@@ -8,6 +8,9 @@ import { useLotsStore } from "@/store/lots"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useUser } from "@/context/useUser"
+import { useLots } from "@/hooks/useLots"
+import { useEffect } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -47,7 +50,8 @@ const averageCoordinates = (lots: Lot[]) => {
 
 export default function GestionLotsPage() {
   const { user } = useUser()
-  const { lots, addLot, getLotById } = useLotsStore()
+  const { addLot, getLotById } = useLotsStore()
+  const { serverLots, loadLots, isLoading } = useLots()
   const { addAction } = useLotActionsStore()
   const { createGroup, getGroupsByManager, setGroupLotId } = useCooperativeStore()
   const allGroups = useCooperativeStore((state) => state.groups)
@@ -58,37 +62,53 @@ export default function GestionLotsPage() {
   const [lotDetailOpen, setLotDetailOpen] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
+  useEffect(() => {
+    loadLots()
+  }, [loadLots])
+
+  // On fusionne les lots du store (pour les créations récentes) et du serveur
+  const allLots = useMemo(() => {
+    const combined = [...serverLots]
+    // Optionnel: ajouter ceux du store qui n'y sont pas encore
+    return combined
+  }, [serverLots])
+
   const groupedLotIds = useMemo(
-    () => new Set(allGroups.flatMap((group) => group.lotIds)),
+    () => new Set(allGroups.flatMap((group: any) => group.lotIds as string[])),
     [allGroups]
   )
   const coopLots = useMemo(
-    () => lots.filter((lot) => lot.coopName && !lot.isGroup && !groupedLotIds.has(lot.lotId)),
-    [groupedLotIds, lots]
+    () => allLots.filter((lot) => {
+      const coopName = lot.coopName || lot.coop_name
+      const lotId = lot.lotId || lot.id
+      const isThisCoop = coopName === user?.nomAffiche || coopName === user?.orgName
+      return isThisCoop && !lot.isGroup && !groupedLotIds.has(lotId)
+    }),
+    [groupedLotIds, allLots, user]
   )
   const selectedLot = selectedLotId
-    ? lots.find((lot) => lot.lotId === selectedLotId) ?? null
+    ? allLots.find((lot) => (lot.lotId || lot.id) === selectedLotId) ?? null
     : null
   const groups = user ? getGroupsByManager(user.userId) : []
 
   const handleCreateGroup = () => {
     if (!user || selectedLots.length === 0 || !newGroupName) return
 
-    const sourceLots = lots.filter((lot) => selectedLots.includes(lot.lotId))
+    const sourceLots = allLots.filter((lot: any) => selectedLots.includes(lot.lotId || lot.id))
     if (sourceLots.length === 0) return
 
-    const alreadyGrouped = sourceLots.filter((lot) => groupedLotIds.has(lot.lotId))
+    const alreadyGrouped = sourceLots.filter((lot: any) => groupedLotIds.has(lot.lotId || lot.id))
     if (alreadyGrouped.length > 0) {
-      setStatusMessage(`Ce lot a déjà été regroupé: ${alreadyGrouped[0].lotId}`)
+      setStatusMessage(`Ce lot a déjà été regroupé: ${alreadyGrouped[0].lotId || alreadyGrouped[0].id}`)
       return
     }
 
-    const totalWeight = sourceLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
+    const totalWeight = sourceLots.reduce((sum: number, lot: any) => sum + (lot.poidsKg || lot.poids_kg || 0), 0)
     const groupBase = averageCoordinates(sourceLots)
-    const sourceLotIds = sourceLots.map((lot) => lot.lotId)
-    const uniquePhotoUrls = Array.from(new Set(sourceLots.flatMap((lot) => lot.photoUrls)))
-    const uniquePhotoHashes = Array.from(new Set(sourceLots.flatMap((lot) => lot.photoHashes)))
-    const firstLot = sourceLots[0]
+    const sourceLotIds: string[] = sourceLots.map((lot: any) => (lot.lotId || lot.id) as string)
+    const uniquePhotoUrls: string[] = Array.from(new Set(sourceLots.flatMap((lot: any) => (lot.photoUrls || []) as string[])))
+    const uniquePhotoHashes: string[] = Array.from(new Set(sourceLots.flatMap((lot: any) => (lot.photoHashes || []) as string[])))
+    const firstLot = sourceLots[0] as any
 
     const groupRecord = createGroup(newGroupName, user.userId, sourceLotIds, totalWeight)
 
@@ -268,7 +288,13 @@ export default function GestionLotsPage() {
           <CardTitle>Lots Disponibles ({coopLots.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          {coopLots.length > 0 ? (
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : coopLots.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -284,16 +310,16 @@ export default function GestionLotsPage() {
                 <tbody>
                   {coopLots.map((lot) => (
                     <tr
-                      key={lot.lotId}
+                      key={lot.lotId || lot.id}
                       className="cursor-pointer border-b hover:bg-muted/50"
                       onClick={() => {
-                        setSelectedLotId(lot.lotId)
+                        setSelectedLotId(lot.lotId || lot.id)
                         setLotDetailOpen(true)
                       }}
                     >
-                      <td className="px-4 py-3 font-mono text-xs">{lot.lotId}</td>
-                      <td className="px-4 py-3">{lot.coopName}</td>
-                      <td className="px-4 py-3">{lot.poidsKg} kg</td>
+                      <td className="px-4 py-3 font-mono text-xs">{lot.lotId || lot.id}</td>
+                      <td className="px-4 py-3">{lot.coopName || lot.coop_name}</td>
+                      <td className="px-4 py-3">{lot.poidsKg || lot.poids_kg} kg</td>
                       <td className="px-4 py-3">{lot.region}</td>
                       <td className="px-4 py-3">
                         <Badge variant="outline">{translateStatus(lot.statut)}</Badge>

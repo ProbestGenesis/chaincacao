@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Lot, LotStatus } from '@/types/types';
-import { mockLots } from '@/mock/mockData';
 
 interface LotsStore {
   lots: Lot[];
@@ -24,7 +23,7 @@ const sortLotsByCreatedAtDesc = (lots: Lot[]) =>
 export const useLotsStore = create(
   persist<LotsStore>(
     (set, get) => ({
-      lots: sortLotsByCreatedAtDesc(mockLots),
+      lots: [],
 
       addLot: (lotData) => {
         const newLot: Lot = {

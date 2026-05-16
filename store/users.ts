@@ -1,27 +1,28 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from '@/types/types';
-import { mockUsers } from '@/mock/mockData';
 
 interface UsersStore {
   users: User[];
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   getUserById: (userId: string) => User | undefined;
-  getUserByEmail: (email: string) => User | undefined;
   getCurrentUser: () => User | null;
-  setCurrentUser: (userId: string, role?: User['roles'][number] | null) => void;
+  setCurrentUser: (userId: string | null, role?: User['roles'][number] | null) => void;
   currentUserId: string | null;
   currentRole: User['roles'][number] | null;
   setCurrentRole: (role: User['roles'][number] | null) => void;
+  token: string | null;
+  setToken: (token: string | null) => void;
 }
 
 export const useUsersStore = create(
   persist<UsersStore>(
     (set, get) => ({
-      users: mockUsers,
+      users: [],
       currentUserId: null,
       currentRole: null,
+      token: null,
 
       addUser: (user: User) =>
         set((state) => ({
@@ -40,19 +41,20 @@ export const useUsersStore = create(
         return users.find((u) => u.userId === userId);
       },
 
-      getUserByEmail: (email: string) => {
-        const { users } = get();
-        return users.find((user) => user.email.toLowerCase() === email.toLowerCase());
-      },
-
       getCurrentUser: () => {
         const { currentUserId, users } = get();
         if (!currentUserId) return null;
         return users.find((u) => u.userId === currentUserId) || null;
       },
 
-      setCurrentUser: (userId: string, role = null) =>
+      setCurrentUser: (userId: string | null, role = null) =>
         set((state) => {
+          if (!userId) {
+            return {
+              currentUserId: null,
+              currentRole: null,
+            };
+          }
           const nextUser = state.users.find((user) => user.userId === userId);
           return {
             currentUserId: userId,
@@ -61,6 +63,8 @@ export const useUsersStore = create(
         }),
 
       setCurrentRole: (role) => set({ currentRole: role }),
+
+      setToken: (token) => set({ token }),
     }),
     {
       name: 'usersStore',

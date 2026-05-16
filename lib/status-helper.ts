@@ -2,8 +2,14 @@ export const translateStatus = (status: string | undefined): string => {
   if (!status) return "Inconnu";
   
   const statusMap: Record<string, string> = {
-    // Lots & General
-    draft: "Brouillon",
+    // Lots & General (Backend terminology)
+    collecte: "Initialisé",
+    en_transit: "En transit",
+    transforme: "Transformé",
+    exporte: "Exporté",
+    
+    // Legacy / Frontend terms
+    draft: "Initialisé",
     pending: "En attente",
     transferred: "Transféré",
     transformed: "Transformé",
@@ -23,6 +29,7 @@ export const translateStatus = (status: string | undefined): string => {
     
     // KYC & Validation
     verified: "Vérifié",
+    certified: "Certifié",
     rejected: "Rejeté",
     confirmed: "Confirmé",
   };

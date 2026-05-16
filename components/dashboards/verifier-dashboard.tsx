@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { CreateCertificationDialog } from "@/components/traceability/create-certification-dialog"
 
 export function VerifierDashboard() {
   const pendingVerification = 8
@@ -44,9 +45,12 @@ export function VerifierDashboard() {
         </Card>
       </div>
 
-      <Button asChild>
-        <Link href="/verifier/lot">Vérifier un lot</Link>
-      </Button>
+      <div className="flex gap-4">
+        <Button asChild variant="outline">
+          <Link href="/verifier/lot">Rechercher un lot</Link>
+        </Button>
+        <CreateCertificationDialog />
+      </div>
 
       <Card>
         <CardHeader>

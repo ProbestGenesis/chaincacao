@@ -1,4 +1,4 @@
-export type UserRole = 'Agriculteur' | 'CoopManager' | 'Transformer' | 'Exporter' | 'CarrierUser' | 'Verifier' | 'Importer' | 'MinistryAnalyst' | 'Admin';
+export type UserRole = 'Agriculteur' | 'CoopManager' | 'Transformer' | 'Exporter' | 'CarrierUser' | 'Verifier' | 'Importer' | 'MinistryAnalyst' | 'Admin' | 'PRODUCTEUR' | 'COOPERATIVE' | 'EXPORTATEUR' | 'CERTIF' | 'MINISTERE' | 'TRANSFORMATEUR';
 
 export type LotStatus = 'draft' | 'pending' | 'verified'| 'transferred' | 'transformed' | 'exported';
 export type TransportStatus = 'assigne' | 'picked_up' | 'in_transit' | 'delivered' | 'cancelled';
@@ -31,6 +31,10 @@ export interface User {
   statut: 'actif' | 'inactif';
   dateCreation: number;
   derniereConnexion: number;
+  token?: string;
+  orgName?: string;
+  blockchainId?: string;
+  coopId?: string;
 }
 
 export interface Lot {

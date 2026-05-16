@@ -9,6 +9,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -17,7 +25,7 @@ import { Bell, LogOut, Repeat, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function AppTopbar() {
-  const { user, activeRole, logout, switchAccount, switchRole } = useUser()
+  const { user, activeRole, logout, switchRole } = useUser()
   const { users } = useUsersStore()
 
   const initials = user?.nomAffiche
@@ -38,10 +46,33 @@ export function AppTopbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative rounded-full">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative rounded-full">
+              <Bell className="h-5 w-5" />
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent className="w-[350px] sm:w-[450px]">
+            <SheetHeader className="border-b pb-4">
+              <SheetTitle>Notifications</SheetTitle>
+              <SheetDescription>
+                Gérez vos alertes et mises à jour de lots.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 py-6">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="mb-4 rounded-full bg-muted p-4">
+                  <Bell className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">Aucune nouvelle notification</p>
+                <p className="text-xs text-muted-foreground">
+                  Vous serez informé dès qu'il y aura du nouveau sur vos lots.
+                </p>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         <Popover>
           <PopoverTrigger asChild>
@@ -105,49 +136,7 @@ export function AppTopbar() {
                 </div>
               )*/}
 
-              <div className="space-y-2">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Changer de compte
-                </p>
-                <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                  {users.map((account) => {
-                    const isCurrent = account.userId === user?.userId
 
-                    return (
-                      <button
-                        key={account.userId}
-                        type="button"
-                        onClick={() => switchAccount(account.userId)}
-                        className={cn(
-                          "w-full rounded-2xl border p-3 text-left transition hover:border-primary/60 hover:bg-muted/50",
-                          isCurrent && "border-primary bg-primary/5"
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">
-                              {account.nomAffiche}
-                            </p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {account.email}
-                            </p>
-                          </div>
-                          <Badge variant={isCurrent ? "default" : "secondary"} className="rounded-full">
-                            {isCurrent ? "Actif" : "Ouvrir"}
-                          </Badge>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {account.roles.map((role) => (
-                            <Badge key={role} variant="outline" className="rounded-full text-[10px]">
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <Button asChild variant="outline" className="justify-start rounded-xl">
@@ -157,6 +146,7 @@ export function AppTopbar() {
                   </Link>
                 </Button>
                 <Button
+                  type="button"
                   variant="destructive"
                   className="justify-start rounded-xl"
                   onClick={logout}

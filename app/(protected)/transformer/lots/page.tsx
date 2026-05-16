@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronRight, Search } from "lucide-react"
 
 import { RoleGuard } from "@/components/layout/role-guard"
 import { LotDetailModal } from "@/components/lot/lot-detail-modal"
+import { useCooperativeStore } from "@/store/cooperative"
 import { useLotActionsStore } from "@/store/lot-actions"
 import { useLotsStore } from "@/store/lots"
 import { useUser } from "@/context/useUser"
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { getLotHistoryIds } from "@/lib/lot-lineage"
 
 export default function TransformerLotsPage() {
   return (
@@ -26,6 +28,7 @@ function TransformerLotsContent() {
   const { user } = useUser()
   const { lots } = useLotsStore()
   const { getLotTimeline } = useLotActionsStore()
+  const groups = useCooperativeStore((state) => state.groups)
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -67,7 +70,10 @@ function TransformerLotsContent() {
     },
     {
       label: "Historique",
-      value: transformerLots.reduce((sum, lot) => sum + getLotTimeline(lot.lotId).length, 0),
+      value: transformerLots.reduce(
+        (sum, lot) => sum + getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups)).length,
+        0
+      ),
       note: "Actions et validations",
     },
   ]
@@ -163,7 +169,7 @@ function TransformerLotsContent() {
             <CardContent className="space-y-3">
               {column.lots.length > 0 ? (
                 column.lots.map((lot) => {
-                  const timeline = getLotTimeline(lot.lotId)
+                  const timeline = getLotTimeline(lot.lotId, getLotHistoryIds(lot, groups))
                   const lastEvent = timeline[timeline.length - 1]
 
                   return (

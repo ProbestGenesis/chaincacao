@@ -14,13 +14,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { LotForm } from "@/components/forms/lot-form"
-import { useLotsStore } from "@/store/lots"
+import { useLots } from "@/hooks/useLots"
 import { useUser } from "@/context/useUser"
 import { getRoleRoute } from "@/lib/navigation/role-config"
 
 export function AddLotDialog() {
   const [open, setOpen] = useState(false)
-  const addLot = useLotsStore((state) => state.addLot)
+  const { createLot, isSubmitting } = useLots()
   const { user, activeRole } = useUser()
   const router = useRouter()
 
@@ -42,26 +42,22 @@ export function AddLotDialog() {
         <LotForm
           onSubmit={async (values) => {
             if (!user) return
-            addLot({
-              farmerId: user.userId,
-              photoUrls: values.photoUrls ?? [],
-              photoHashes: [],
-              gps: {
-                latitude: values.gpsLatitude,
-                longitude: values.gpsLongitude,
-              },
-              region: values.region,
-              poidsKg: values.poidsKg,
-              espece: values.espece,
-              dateCollecte: values.dateCollecte.getTime(),
-              coopName: values.coopName ?? "",
-              statut: "draft",
-              syncStatus: "pending",
-              createdBy: user.userId,
-            })
-            setOpen(false)
-            router.push(getRoleRoute(activeRole))
+            try {
+              await createLot({
+                espece: values.espece,
+                poidsKg: values.poidsKg,
+                dateCollecte: values.dateCollecte.toISOString().split("T")[0],
+                parcelleId: values.parcelleId,
+                coopId: values.coopId ?? "",
+                photos: [] // Pour l'instant on ne gère pas les uploads réels ici, ou on envoie une liste vide
+              })
+              setOpen(false)
+              router.push(getRoleRoute(activeRole))
+            } catch (error) {
+              console.error("Create lot error:", error)
+            }
           }}
+          submitLabel={isSubmitting ? "Création..." : "Enregistrer le lot"}
         />
       </DialogContent>
     </Dialog>

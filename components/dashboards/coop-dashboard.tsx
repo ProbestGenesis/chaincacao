@@ -1,28 +1,36 @@
 "use client"
 
-import { useLotsStore } from "@/store/lots"
+import { useEffect } from "react"
+import { useOwnedLots } from "@/hooks/useLots"
 import { useCooperativeStore } from "@/store/cooperative"
 import { useUser } from "@/context/useUser"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 
 export function CoopDashboard() {
   const { user } = useUser()
-  const { lots } = useLotsStore()
+  const { data: _serverLots = [], isLoading } = useOwnedLots(user?.blockchainId || "")
+  const serverLots: any[] = _serverLots
+
   const { getGroupsByManager } = useCooperativeStore()
 
   const groups = user ? getGroupsByManager(user.userId) : []
-  const coopLots = lots.filter((lot) => lot.coopName)
-  const totalCoopWeight = coopLots.reduce((sum, lot) => sum + lot.poidsKg, 0)
-  const averageQuality = coopLots.length > 0 
-    ? Math.round((coopLots.length / lots.length) * 100) 
-    : 0
-
-  const pendingCount = coopLots.filter((l) => l.statut === "pending").length
-  const readyToTransfer = coopLots.filter((l) => l.statut === "draft" || l.statut === "pending").length
+  const coopLots = serverLots.filter((lot) => {
+    const coopName = lot.coopName || lot.coop_name
+    if (!coopName) return false
+    // Si l'utilisateur est un CoopManager, on filtre par son nom de coop (nomAffiche ou orgName)
+    return coopName === user?.nomAffiche || coopName === user?.orgName
+  })
+  const totalCoopWeight = coopLots.reduce((sum, lot) => sum + (lot.poidsKg || lot.poids_kg || 0), 0)
+  
+  const pendingCount = coopLots.filter((l) => l.statut?.toLowerCase() === "pending").length
+  const readyToTransfer = coopLots.filter((l) => 
+    ["draft", "pending", "collecte"].includes(l.statut?.toLowerCase())
+  ).length
 
   return (
     <div className="space-y-6 p-6">
@@ -33,7 +41,9 @@ export function CoopDashboard() {
             <CardDescription className="text-amber-700">Poids Total Agrégé</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-amber-900">{totalCoopWeight}</div>
+            <div className="text-3xl font-bold text-amber-900">
+              {isLoading ? <Skeleton className="h-9 w-16" /> : totalCoopWeight}
+            </div>
             <p className="text-xs text-amber-700 mt-1">kg</p>
           </CardContent>
         </Card>
@@ -43,7 +53,9 @@ export function CoopDashboard() {
             <CardDescription>Nombre de Lots</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{coopLots.length}</div>
+            <div className="text-3xl font-bold">
+              {isLoading ? <Skeleton className="h-9 w-16" /> : coopLots.length}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">dans la coop</p>
           </CardContent>
         </Card>
@@ -78,6 +90,11 @@ export function CoopDashboard() {
           </Link>
         </Button>
         <Button variant="outline" asChild>
+          <Link href="/cooperative/management">
+            Gérer les membres
+          </Link>
+        </Button>
+        <Button variant="ghost" asChild>
           <Link href="/cooperative/lots">
             Voir tous les lots
           </Link>
